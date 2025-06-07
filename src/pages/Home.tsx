@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Home, Building, Calendar, Users } from 'lucide-react';
+import { Search, MapPin, Building, Calendar, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Property {
@@ -21,7 +21,7 @@ interface Property {
   property_images: Array<{ image_url: string; is_main: boolean }>;
 }
 
-const Home = () => {
+const HomePage = () => {
   const navigate = useNavigate();
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,6 +56,8 @@ const Home = () => {
       currency: currency === 'ARS' ? 'ARS' : 'USD',
     }).format(price);
   };
+
+  const PropertyIcon = Building;
 
   return (
     <div className="min-h-screen">
@@ -96,7 +98,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
             <div className="flex flex-col items-center">
-              <Home className="h-12 w-12 text-blue-600 mb-4" />
+              <PropertyIcon className="h-12 w-12 text-blue-600 mb-4" />
               <h3 className="text-3xl font-bold text-gray-900">5,000+</h3>
               <p className="text-gray-600">Propiedades</p>
             </div>
@@ -204,4 +206,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default HomePage;

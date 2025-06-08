@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, MapPin, Building, Calendar, Users, Star, Crown, Zap, Eye, Bed, Bath, Car, Share2 } from 'lucide-react';
+import { Search, MapPin, Building, Calendar, Users, Star, Crown, Zap, Eye, Bed, Bath, Car, Share2, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import MercadoPagoButton from '@/components/MercadoPagoButton';
 
 interface Property {
@@ -30,22 +32,85 @@ interface Property {
     company_name: string;
     phone: string;
     user_type: string;
+    youtube_url?: string;
+    instagram_url?: string;
+    facebook_url?: string;
   };
-  subscriptions: {
+  subscriptions: Array<{
     plan_type: string;
     status: string;
-  }[];
+  }>;
 }
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [favorites, setFavorites] = useState<string[]>([]);
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+    if (user) {
+      fetchFavorites();
+    }
+  }, [user]);
+
+  const fetchFavorites = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('favorites')
+      .select('property_id')
+      .eq('user_id', user.id);
+    
+    if (data) {
+      setFavorites(data.map(fav => fav.property_id));
+    }
+  };
+
+  const toggleFavorite = async (propertyId: string) => {
+    if (!user) {
+      toast({
+        title: "Inicia sesión",
+        description: "Necesitas iniciar sesión para guardar favoritos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const isFavorite = favorites.includes(propertyId);
+    
+    if (isFavorite) {
+      const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('property_id', propertyId);
+      
+      if (!error) {
+        setFavorites(prev => prev.filter(id => id !== propertyId));
+        toast({
+          title: "Eliminado de favoritos",
+          description: "La propiedad ha sido eliminada de tus favoritos",
+        });
+      }
+    } else {
+      const { error } = await supabase
+        .from('favorites')
+        .insert([{ user_id: user.id, property_id: propertyId }]);
+      
+      if (!error) {
+        setFavorites(prev => [...prev, propertyId]);
+        toast({
+          title: "Agregado a favoritos",
+          description: "La propiedad ha sido agregada a tus favoritos",
+        });
+      }
+    }
+  };
 
   const fetchProperties = async () => {
     const { data, error } = await supabase
@@ -53,10 +118,11 @@ const HomePage = () => {
       .select(`
         *,
         property_images (image_url, is_main),
-        profiles (first_name, last_name, company_name, phone, user_type),
-        subscriptions (plan_type, status)
+        profiles (first_name, last_name, company_name, phone, user_type, youtube_url, instagram_url, facebook_url),
+        subscriptions!inner (plan_type, status)
       `)
       .eq('status', 'published')
+      .eq('subscriptions.status', 'active')
       .order('created_at', { ascending: false });
 
     if (data && !error) {
@@ -64,8 +130,8 @@ const HomePage = () => {
       const featured = data.filter(property => property.is_featured).slice(0, 6);
       const shuffled = [...data].sort(() => 0.5 - Math.random()).slice(0, 12);
       
-      setFeaturedProperties(featured as Property[]);
-      setAllProperties(shuffled as Property[]);
+      setFeaturedProperties(featured);
+      setAllProperties(shuffled);
     }
   };
 
@@ -135,6 +201,7 @@ const HomePage = () => {
     const activeSub = property.subscriptions?.find(sub => sub.status === 'active');
     const showPhone = activeSub && ['plan_300', 'plan_500', 'plan_1000', 'plan_3000'].includes(activeSub.plan_type);
     const canShare = activeSub && ['plan_1000', 'plan_3000'].includes(activeSub.plan_type);
+    const isFavorite = favorites.includes(property.id);
 
     return (
       <Card 
@@ -158,17 +225,32 @@ const HomePage = () => {
               <Badge className="bg-yellow-500 text-white">Destacado</Badge>
             </div>
           )}
-          {canShare && (
+          <div className="absolute bottom-4 right-4 flex gap-2">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleShare(property);
+                toggleFavorite(property.id);
               }}
-              className="absolute bottom-4 right-4 bg-white/80 hover:bg-white p-2 rounded-full transition-colors"
+              className={`p-2 rounded-full transition-colors ${
+                isFavorite 
+                  ? 'bg-red-500 text-white' 
+                  : 'bg-white/80 hover:bg-white text-gray-700'
+              }`}
             >
-              <Share2 className="h-4 w-4" />
+              <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
             </button>
-          )}
+            {canShare && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleShare(property);
+                }}
+                className="bg-white/80 hover:bg-white p-2 rounded-full transition-colors"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
         
         <CardContent className="p-6">
@@ -219,6 +301,26 @@ const HomePage = () => {
                   <p className="text-xs text-blue-600">
                     📞 {property.profiles.phone}
                   </p>
+                )}
+                {/* Social media links for premium users */}
+                {activeSub && ['plan_1000', 'plan_3000'].includes(activeSub.plan_type) && (
+                  <div className="flex gap-2 mt-2">
+                    {property.profiles?.youtube_url && (
+                      <a href={property.profiles.youtube_url} target="_blank" rel="noopener noreferrer" className="text-red-500">
+                        📺
+                      </a>
+                    )}
+                    {property.profiles?.instagram_url && (
+                      <a href={property.profiles.instagram_url} target="_blank" rel="noopener noreferrer" className="text-pink-500">
+                        📷
+                      </a>
+                    )}
+                    {property.profiles?.facebook_url && (
+                      <a href={property.profiles.facebook_url} target="_blank" rel="noopener noreferrer" className="text-blue-500">
+                        📘
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="flex items-center text-xs text-gray-500">
@@ -380,7 +482,7 @@ const HomePage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <Card className="bg-white text-gray-900 p-6">
               <div className="text-center">
                 <Building className="h-12 w-12 text-blue-600 mx-auto mb-4" />
@@ -390,9 +492,26 @@ const HomePage = () => {
                   <li>• 1 publicación</li>
                   <li>• Máximo 5 fotos</li>
                   <li>• Sin enlaces externos</li>
+                  <li>• Publicación extra $100 MXN</li>
                 </ul>
                 <Button className="w-full" disabled>
                   Plan Actual
+                </Button>
+              </div>
+            </Card>
+
+            <Card className="bg-white text-gray-900 p-6">
+              <div className="text-center">
+                <Crown className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                <h3 className="text-xl font-bold mb-2">Plan $100</h3>
+                <p className="text-3xl font-bold text-green-600 mb-4">$100 MXN/mes</p>
+                <ul className="text-left space-y-2 mb-6">
+                  <li>• 3 publicaciones</li>
+                  <li>• Máximo 10 fotos</li>
+                  <li>• Número telefónico</li>
+                </ul>
+                <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => navigate('/plans')}>
+                  Elegir Plan
                 </Button>
               </div>
             </Card>
@@ -406,7 +525,8 @@ const HomePage = () => {
                   <li>• 30 publicaciones</li>
                   <li>• Máximo 30 fotos</li>
                   <li>• Marco dorado</li>
-                  <li>• Nombre personalizado</li>
+                  <li>• Redes sociales</li>
+                  <li>• Analytics</li>
                 </ul>
                 <Button className="w-full bg-yellow-600 hover:bg-yellow-700" onClick={() => navigate('/plans')}>
                   Elegir Plan
@@ -423,6 +543,7 @@ const HomePage = () => {
                   <li>• 100 publicaciones</li>
                   <li>• Marcos animados</li>
                   <li>• Página VIP exclusiva</li>
+                  <li>• Analytics avanzados</li>
                   <li>• Exportar catálogo</li>
                 </ul>
                 <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={() => navigate('/plans')}>

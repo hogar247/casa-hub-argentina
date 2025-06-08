@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Upload, X, Image as ImageIcon } from 'lucide-react';
 
 interface PropertyCategory {
   id: string;
@@ -33,7 +35,23 @@ interface PropertyData {
   surface_total: string;
   surface_covered: string;
   parking_spaces: string;
+  features: string[];
 }
+
+interface UploadedImage {
+  id?: string;
+  file?: File;
+  url: string;
+  is_main: boolean;
+}
+
+const mexicoStatesAndMunicipalities = {
+  "Aguascalientes": ["Aguascalientes","Asientos","Calvillo","Cosio","El Llano","Jesus Maria","Pabellon de Arteaga","Rincon de Romos","San Francisco de los Romo","San Jose de Gracia","Tepezala"],
+  "Baja California": ["Ensenada","Mexicali","Playas de Rosarito","Tecate","Tijuana"],
+  "Baja California Sur": ["Comondu","La Paz","Loreto","Los Cabos","Mulege"],
+  "Ciudad de Mexico": ["Alvaro Obregon","Azcapotzalco","Benito Juarez","Coyoacan","Cuajimalpa de Morelos","Cuauhtemoc","Gustavo A. Madero","Iztacalco","Iztapalapa","La Magdalena Contreras","Miguel Hidalgo","Milpa Alta","Tlalpan","Tlahuac","Venustiano Carranza","Xochimilco"],
+  "Jalisco": ["Guadalajara","Zapopan","Tlaquepaque","Tonala","Puerto Vallarta","Lagos de Moreno","Tepatitlan de Morelos"]
+};
 
 const PropertyForm = () => {
   const { user } = useAuth();
@@ -42,12 +60,14 @@ const PropertyForm = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<PropertyCategory[]>([]);
+  const [images, setImages] = useState<UploadedImage[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [formData, setFormData] = useState<PropertyData>({
     title: '',
     description: '',
     operation_type: '',
     price: '',
-    currency: 'ARS',
+    currency: 'MXN',
     category_id: '',
     address: '',
     city: '',
@@ -57,7 +77,8 @@ const PropertyForm = () => {
     bathrooms: '',
     surface_total: '',
     surface_covered: '',
-    parking_spaces: '0'
+    parking_spaces: '0',
+    features: []
   });
 
   useEffect(() => {
@@ -106,7 +127,7 @@ const PropertyForm = () => {
         description: data.description || '',
         operation_type: data.operation_type || '',
         price: data.price?.toString() || '',
-        currency: data.currency || 'ARS',
+        currency: data.currency || 'MXN',
         category_id: data.category_id || '',
         address: data.address || '',
         city: data.city || '',
@@ -116,13 +137,139 @@ const PropertyForm = () => {
         bathrooms: data.bathrooms?.toString() || '',
         surface_total: data.surface_total?.toString() || '',
         surface_covered: data.surface_covered?.toString() || '',
-        parking_spaces: data.parking_spaces?.toString() || '0'
+        parking_spaces: data.parking_spaces?.toString() || '0',
+        features: data.features || []
       });
+
+      // Fetch existing images
+      const { data: imagesData } = await supabase
+        .from('property_images')
+        .select('*')
+        .eq('property_id', id)
+        .order('sort_order');
+
+      if (imagesData) {
+        setImages(imagesData.map(img => ({
+          id: img.id,
+          url: img.image_url,
+          is_main: img.is_main
+        })));
+      }
     }
   };
 
-  const handleInputChange = (field: keyof PropertyData, value: string) => {
+  const handleInputChange = (field: keyof PropertyData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleFeatureChange = (feature: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      features: checked 
+        ? [...prev.features, feature]
+        : prev.features.filter(f => f !== feature)
+    }));
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    setUploadingImages(true);
+    
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          toast({
+            title: "Error",
+            description: `${file.name} no es una imagen válida`,
+            variant: "destructive",
+          });
+          continue;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          toast({
+            title: "Error",
+            description: `${file.name} es demasiado grande. Máximo 5MB`,
+            variant: "destructive",
+          });
+          continue;
+        }
+
+        // Create preview URL
+        const previewUrl = URL.createObjectURL(file);
+        
+        setImages(prev => [...prev, {
+          file,
+          url: previewUrl,
+          is_main: prev.length === 0 // First image is main by default
+        }]);
+      }
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => {
+      const newImages = prev.filter((_, i) => i !== index);
+      // If we removed the main image, make the first remaining image main
+      if (prev[index].is_main && newImages.length > 0) {
+        newImages[0].is_main = true;
+      }
+      return newImages;
+    });
+  };
+
+  const setMainImage = (index: number) => {
+    setImages(prev => prev.map((img, i) => ({
+      ...img,
+      is_main: i === index
+    })));
+  };
+
+  const uploadImages = async (propertyId: string) => {
+    for (const image of images) {
+      if (image.file) {
+        // Upload new image
+        const fileExt = image.file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `properties/${propertyId}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(filePath, image.file);
+
+        if (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          continue;
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(filePath);
+
+        // Save to database
+        const { error: dbError } = await supabase
+          .from('property_images')
+          .insert({
+            property_id: propertyId,
+            image_url: publicUrl,
+            is_main: image.is_main,
+            sort_order: images.indexOf(image)
+          });
+
+        if (dbError) {
+          console.error('Error saving image to database:', dbError);
+        }
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent, status: 'draft' | 'published' = 'draft') => {
@@ -148,11 +295,14 @@ const PropertyForm = () => {
         surface_total: formData.surface_total ? parseFloat(formData.surface_total) : null,
         surface_covered: formData.surface_covered ? parseFloat(formData.surface_covered) : null,
         parking_spaces: parseInt(formData.parking_spaces),
+        features: formData.features,
         status,
         user_id: user.id
       };
 
       let result;
+      let propertyId = id;
+
       if (id) {
         result = await supabase
           .from('properties')
@@ -162,11 +312,22 @@ const PropertyForm = () => {
       } else {
         result = await supabase
           .from('properties')
-          .insert([propertyData]);
+          .insert([propertyData])
+          .select()
+          .single();
+        
+        if (result.data) {
+          propertyId = result.data.id;
+        }
       }
 
       if (result.error) {
         throw result.error;
+      }
+
+      // Upload images if there are new ones
+      if (propertyId && images.some(img => img.file)) {
+        await uploadImages(propertyId);
       }
 
       toast({
@@ -189,12 +350,17 @@ const PropertyForm = () => {
     }
   };
 
-  const argentineProvinces = [
-    'Buenos Aires', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba', 'Corrientes',
-    'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza',
-    'Misiones', 'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis',
-    'Santa Cruz', 'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego',
-    'Tucumán', 'Ciudad Autónoma de Buenos Aires'
+  const featuresList = [
+    { id: 'pets', label: 'Acepta mascotas' },
+    { id: 'furnished', label: 'Amueblado' },
+    { id: 'wifi', label: 'WiFi' },
+    { id: 'pool', label: 'Piscina' },
+    { id: 'gym', label: 'Gimnasio' },
+    { id: 'security', label: 'Seguridad 24/7' },
+    { id: 'elevator', label: 'Elevador' },
+    { id: 'balcony', label: 'Balcón' },
+    { id: 'terrace', label: 'Terraza' },
+    { id: 'garden', label: 'Jardín' }
   ];
 
   return (
@@ -297,7 +463,7 @@ const PropertyForm = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ARS">Pesos Argentinos (ARS)</SelectItem>
+                      <SelectItem value="MXN">Pesos Mexicanos (MXN)</SelectItem>
                       <SelectItem value="USD">Dólares (USD)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -319,41 +485,65 @@ const PropertyForm = () => {
                   required
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
-                  placeholder="Ej: Av. Santa Fe 1234"
+                  placeholder="Ej: Av. Reforma 1234"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="city">Ciudad *</Label>
-                  <Input
-                    id="city"
-                    required
-                    value={formData.city}
-                    onChange={(e) => handleInputChange('city', e.target.value)}
-                    placeholder="Ej: Buenos Aires"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="province">Provincia *</Label>
+                  <Label htmlFor="province">Estado *</Label>
                   <Select
                     value={formData.province}
-                    onValueChange={(value) => handleInputChange('province', value)}
+                    onValueChange={(value) => {
+                      handleInputChange('province', value);
+                      handleInputChange('city', ''); // Reset city when state changes
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una provincia" />
+                      <SelectValue placeholder="Selecciona un estado" />
                     </SelectTrigger>
                     <SelectContent>
-                      {argentineProvinces.map((province) => (
-                        <SelectItem key={province} value={province}>
-                          {province}
+                      {Object.keys(mexicoStatesAndMunicipalities).map((state) => (
+                        <SelectItem key={state} value={state}>
+                          {state}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div>
+                  <Label htmlFor="city">Municipio *</Label>
+                  <Select
+                    value={formData.city}
+                    onValueChange={(value) => handleInputChange('city', value)}
+                    disabled={!formData.province}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un municipio" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {formData.province && mexicoStatesAndMunicipalities[formData.province as keyof typeof mexicoStatesAndMunicipalities]?.map((municipality) => (
+                        <SelectItem key={municipality} value={municipality}>
+                          {municipality}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="Otro">Otro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              {formData.city === 'Otro' && (
+                <div>
+                  <Label htmlFor="custom_city">Especifica el municipio</Label>
+                  <Input
+                    id="custom_city"
+                    placeholder="Escribe el nombre del municipio"
+                    onChange={(e) => handleInputChange('city', e.target.value)}
+                  />
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="postal_code">Código Postal</Label>
@@ -361,7 +551,7 @@ const PropertyForm = () => {
                   id="postal_code"
                   value={formData.postal_code}
                   onChange={(e) => handleInputChange('postal_code', e.target.value)}
-                  placeholder="Ej: 1425"
+                  placeholder="Ej: 06600"
                 />
               </div>
             </CardContent>
@@ -432,6 +622,107 @@ const PropertyForm = () => {
                   onChange={(e) => handleInputChange('surface_covered', e.target.value)}
                 />
               </div>
+
+              {/* Features */}
+              <div>
+                <Label>Características Adicionales</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                  {featuresList.map((feature) => (
+                    <div key={feature.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={feature.id}
+                        checked={formData.features.includes(feature.id)}
+                        onCheckedChange={(checked) => handleFeatureChange(feature.id, !!checked)}
+                      />
+                      <Label htmlFor={feature.id} className="text-sm">
+                        {feature.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Imágenes */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Imágenes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="images">Subir Imágenes</Label>
+                <div className="mt-2">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="w-8 h-8 mb-2 text-gray-500" />
+                      <p className="mb-2 text-sm text-gray-500">
+                        <span className="font-semibold">Haz clic para subir</span> o arrastra y suelta
+                      </p>
+                      <p className="text-xs text-gray-500">PNG, JPG, JPEG (MAX. 5MB)</p>
+                    </div>
+                    <input
+                      id="images"
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImages}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Image Preview */}
+              {images.length > 0 && (
+                <div>
+                  <Label>Imágenes Subidas</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
+                    {images.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <div className={`aspect-square rounded-lg overflow-hidden border-2 ${image.is_main ? 'border-blue-500' : 'border-gray-200'}`}>
+                          <img
+                            src={image.url}
+                            alt={`Imagen ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        
+                        {/* Controls */}
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => removeImage(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {!image.is_main && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setMainImage(index)}
+                            >
+                              Principal
+                            </Button>
+                          )}
+                          {image.is_main && (
+                            <Button size="sm" variant="default" disabled>
+                              Principal
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

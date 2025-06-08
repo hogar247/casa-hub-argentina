@@ -12,6 +12,8 @@ import Properties from "./pages/Properties";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import PropertyForm from "./pages/PropertyForm";
+import SubscriptionPlans from "./pages/SubscriptionPlans";
+import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +33,8 @@ const App = () => (
               <Route path="/properties/:id/edit" element={<PropertyForm />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/plans" element={<SubscriptionPlans />} />
+              <Route path="/user/:username" element={<UserProfile />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

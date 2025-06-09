@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MapPin, Building, Heart, Share2, Eye, Bed, Bath, Car, Star, Search, Filter } from 'lucide-react';
+import { MapPin, Building, Eye, Bed, Bath, Car, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -35,9 +36,6 @@ interface Property {
     company_name: string;
     phone: string;
     user_type: string;
-    youtube_url?: string;
-    instagram_url?: string;
-    facebook_url?: string;
   };
   subscriptions: Array<{
     plan_type: string;
@@ -50,10 +48,10 @@ const PropertiesPage = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [operationType, setOperationType] = useState<string>('');
+  const [operationType, setOperationType] = useState<string>('all');
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
-  const [bedrooms, setBedrooms] = useState<string>('');
+  const [bedrooms, setBedrooms] = useState<string>('all');
   const [location, setLocation] = useState<string>('');
 
   useEffect(() => {
@@ -69,7 +67,7 @@ const PropertiesPage = () => {
         .select(`
           *,
           property_images (image_url, is_main),
-          profiles (first_name, last_name, company_name, phone, user_type, youtube_url, instagram_url, facebook_url)
+          profiles (first_name, last_name, company_name, phone, user_type)
         `)
         .eq('status', 'published')
         .order('created_at', { ascending: false });
@@ -85,12 +83,15 @@ const PropertiesPage = () => {
       }
 
       if (data) {
-        // Transform the data to match our interface
         const transformedData = data.map((property: any) => ({
           ...property,
-          features: Array.isArray(property.features) ? property.features : [],
-          amenities: Array.isArray(property.amenities) ? property.amenities : [],
-          subscriptions: [{ plan_type: 'basic', status: 'active' }] // Default subscription
+          features: Array.isArray(property.features) ? property.features : 
+                   typeof property.features === 'string' ? JSON.parse(property.features || '[]') : [],
+          amenities: Array.isArray(property.amenities) ? property.amenities : 
+                    typeof property.amenities === 'string' ? JSON.parse(property.amenities || '[]') : [],
+          subscriptions: [{ plan_type: 'basic', status: 'active' }],
+          property_images: property.property_images || [],
+          profiles: property.profiles || { first_name: '', last_name: '', company_name: '', phone: '', user_type: 'owner' }
         }));
 
         setProperties(transformedData);
@@ -113,12 +114,12 @@ const PropertiesPage = () => {
                          property.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          property.province.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesOperation = !operationType || property.operation_type === operationType;
+    const matchesOperation = operationType === 'all' || property.operation_type === operationType;
     
     const matchesMinPrice = !minPrice || property.price >= parseFloat(minPrice);
     const matchesMaxPrice = !maxPrice || property.price <= parseFloat(maxPrice);
     
-    const matchesBedrooms = !bedrooms || property.bedrooms >= parseInt(bedrooms);
+    const matchesBedrooms = bedrooms === 'all' || property.bedrooms >= parseInt(bedrooms);
     
     const matchesLocation = !location || 
                            property.city.toLowerCase().includes(location.toLowerCase()) ||
@@ -289,7 +290,7 @@ const PropertiesPage = () => {
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="sale">Venta</SelectItem>
                 <SelectItem value="rent">Alquiler</SelectItem>
               </SelectContent>
@@ -314,7 +315,7 @@ const PropertiesPage = () => {
                 <SelectValue placeholder="Habitaciones" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Cualquiera</SelectItem>
+                <SelectItem value="all">Cualquiera</SelectItem>
                 <SelectItem value="1">1+</SelectItem>
                 <SelectItem value="2">2+</SelectItem>
                 <SelectItem value="3">3+</SelectItem>

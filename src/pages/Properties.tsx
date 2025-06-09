@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -73,7 +72,6 @@ const PropertiesPage = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [filters, setFilters] = useState({
     operationType: '',
     minPrice: '',
@@ -104,64 +102,7 @@ const PropertiesPage = () => {
 
   useEffect(() => {
     fetchProperties();
-    if (user) {
-      fetchFavorites();
-    }
   }, [searchQuery, filters, user]);
-
-  const fetchFavorites = async () => {
-    if (!user) return;
-    
-    const { data } = await supabase
-      .from('favorites')
-      .select('property_id')
-      .eq('user_id', user.id);
-    
-    if (data) {
-      setFavorites(data.map(fav => fav.property_id));
-    }
-  };
-
-  const toggleFavorite = async (propertyId: string) => {
-    if (!user) {
-      toast({
-        title: "Inicia sesión",
-        description: "Necesitas iniciar sesión para guardar favoritos",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const isFavorite = favorites.includes(propertyId);
-    
-    if (isFavorite) {
-      const { error } = await supabase
-        .from('favorites')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('property_id', propertyId);
-      
-      if (!error) {
-        setFavorites(prev => prev.filter(id => id !== propertyId));
-        toast({
-          title: "Eliminado de favoritos",
-          description: "La propiedad ha sido eliminada de tus favoritos",
-        });
-      }
-    } else {
-      const { error } = await supabase
-        .from('favorites')
-        .insert([{ user_id: user.id, property_id: propertyId }]);
-      
-      if (!error) {
-        setFavorites(prev => [...prev, propertyId]);
-        toast({
-          title: "Agregado a favoritos",
-          description: "La propiedad ha sido agregada a tus favoritos",
-        });
-      }
-    }
-  };
 
   const fetchProperties = async () => {
     setLoading(true);
@@ -184,7 +125,7 @@ const PropertiesPage = () => {
       query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%,province.ilike.%${searchQuery}%`);
     }
 
-    if (filters.operationType) {
+    if (filters.operationType && filters.operationType !== 'all') {
       query = query.eq('operation_type', filters.operationType);
     }
 
@@ -197,18 +138,24 @@ const PropertiesPage = () => {
     }
 
     if (filters.bedrooms) {
-      query = query.eq('bedrooms', parseInt(filters.bedrooms));
+      const bedroomsNum = parseInt(filters.bedrooms);
+      if (!isNaN(bedroomsNum)) {
+        query = query.gte('bedrooms', bedroomsNum);
+      }
     }
 
     if (filters.bathrooms) {
-      query = query.eq('bathrooms', parseInt(filters.bathrooms));
+      const bathroomsNum = parseInt(filters.bathrooms);
+      if (!isNaN(bathroomsNum)) {
+        query = query.gte('bathrooms', bathroomsNum);
+      }
     }
 
-    if (filters.state) {
+    if (filters.state && filters.state !== 'all') {
       query = query.eq('province', filters.state);
     }
 
-    if (filters.city) {
+    if (filters.city && filters.city !== 'all' && filters.city !== 'otro') {
       query = query.eq('city', filters.city);
     }
 
@@ -224,19 +171,28 @@ const PropertiesPage = () => {
         
         const allFeatures = [...features, ...amenities];
 
-        if (filters.petFriendly && !allFeatures.includes('Acepta mascotas')) return false;
-        if (filters.furnished && !allFeatures.includes('Amueblado')) return false;
-        if (filters.parking && property.parking_spaces <= 0) return false;
-        if (filters.wifi && !allFeatures.includes('WiFi')) return false;
-        if (filters.pool && !allFeatures.includes('Piscina')) return false;
-        if (filters.gym && !allFeatures.includes('Gimnasio')) return false;
-        if (filters.security && !allFeatures.includes('Seguridad 24h')) return false;
-        if (filters.elevator && !allFeatures.includes('Elevador')) return false;
+        if (filters.petFriendly === 'yes' && !allFeatures.includes('Acepta mascotas')) return false;
+        if (filters.furnished === 'yes' && !allFeatures.includes('Amueblado')) return false;
+        if (filters.parking === 'yes' && (!property.parking_spaces || property.parking_spaces <= 0)) return false;
+        if (filters.wifi === 'yes' && !allFeatures.includes('WiFi')) return false;
+        if (filters.pool === 'yes' && !allFeatures.includes('Piscina')) return false;
+        if (filters.gym === 'yes' && !allFeatures.includes('Gimnasio')) return false;
+        if (filters.security === 'yes' && !allFeatures.includes('Seguridad 24h')) return false;
+        if (filters.elevator === 'yes' && !allFeatures.includes('Elevador')) return false;
 
         return true;
       });
 
       setProperties(filteredData);
+    } else {
+      setProperties([]);
+      if (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las propiedades",
+          variant: "destructive",
+        });
+      }
     }
     
     setLoading(false);
@@ -342,35 +298,35 @@ const PropertiesPage = () => {
             />
           </div>
 
-          <Select onValueChange={(value) => setFilters({...filters, operationType: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, operationType: value})} value={filters.operationType}>
             <SelectTrigger>
               <SelectValue placeholder="Tipo de operación" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="">Todos</SelectItem>
               <SelectItem value="sale">Venta</SelectItem>
               <SelectItem value="rent">Alquiler</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select onValueChange={(value) => setFilters({...filters, state: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, state: value})} value={filters.state}>
             <SelectTrigger>
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los estados</SelectItem>
+              <SelectItem value="">Todos los estados</SelectItem>
               {Object.keys(MEXICO_STATES_MUNICIPALITIES).map((state) => (
                 <SelectItem key={state} value={state}>{state}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Select onValueChange={(value) => setFilters({...filters, city: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, city: value})} value={filters.city}>
             <SelectTrigger>
               <SelectValue placeholder="Municipio" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los municipios</SelectItem>
+              <SelectItem value="">Todos los municipios</SelectItem>
               {selectedMunicipalities.map((municipality) => (
                 <SelectItem key={municipality} value={municipality}>{municipality}</SelectItem>
               ))}
@@ -394,7 +350,7 @@ const PropertiesPage = () => {
             onChange={(e) => setFilters({...filters, maxPrice: e.target.value})}
           />
 
-          <Select onValueChange={(value) => setFilters({...filters, bedrooms: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, bedrooms: value})} value={filters.bedrooms}>
             <SelectTrigger>
               <SelectValue placeholder="Dormitorios" />
             </SelectTrigger>
@@ -407,7 +363,7 @@ const PropertiesPage = () => {
             </SelectContent>
           </Select>
 
-          <Select onValueChange={(value) => setFilters({...filters, bathrooms: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, bathrooms: value})} value={filters.bathrooms}>
             <SelectTrigger>
               <SelectValue placeholder="Baños" />
             </SelectTrigger>
@@ -422,7 +378,7 @@ const PropertiesPage = () => {
 
         {/* Additional Filters */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-4">
-          <Select onValueChange={(value) => setFilters({...filters, petFriendly: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, petFriendly: value})} value={filters.petFriendly}>
             <SelectTrigger>
               <SelectValue placeholder="Mascotas" />
             </SelectTrigger>
@@ -432,7 +388,7 @@ const PropertiesPage = () => {
             </SelectContent>
           </Select>
 
-          <Select onValueChange={(value) => setFilters({...filters, furnished: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, furnished: value})} value={filters.furnished}>
             <SelectTrigger>
               <SelectValue placeholder="Amueblado" />
             </SelectTrigger>
@@ -442,7 +398,7 @@ const PropertiesPage = () => {
             </SelectContent>
           </Select>
 
-          <Select onValueChange={(value) => setFilters({...filters, parking: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, parking: value})} value={filters.parking}>
             <SelectTrigger>
               <SelectValue placeholder="Parking" />
             </SelectTrigger>
@@ -452,7 +408,7 @@ const PropertiesPage = () => {
             </SelectContent>
           </Select>
 
-          <Select onValueChange={(value) => setFilters({...filters, wifi: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, wifi: value})} value={filters.wifi}>
             <SelectTrigger>
               <SelectValue placeholder="WiFi" />
             </SelectTrigger>
@@ -462,7 +418,7 @@ const PropertiesPage = () => {
             </SelectContent>
           </Select>
 
-          <Select onValueChange={(value) => setFilters({...filters, pool: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, pool: value})} value={filters.pool}>
             <SelectTrigger>
               <SelectValue placeholder="Piscina" />
             </SelectTrigger>
@@ -472,7 +428,7 @@ const PropertiesPage = () => {
             </SelectContent>
           </Select>
 
-          <Select onValueChange={(value) => setFilters({...filters, gym: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, gym: value})} value={filters.gym}>
             <SelectTrigger>
               <SelectValue placeholder="Gimnasio" />
             </SelectTrigger>
@@ -482,7 +438,7 @@ const PropertiesPage = () => {
             </SelectContent>
           </Select>
 
-          <Select onValueChange={(value) => setFilters({...filters, security: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, security: value})} value={filters.security}>
             <SelectTrigger>
               <SelectValue placeholder="Seguridad" />
             </SelectTrigger>
@@ -492,7 +448,7 @@ const PropertiesPage = () => {
             </SelectContent>
           </Select>
 
-          <Select onValueChange={(value) => setFilters({...filters, elevator: value})}>
+          <Select onValueChange={(value) => setFilters({...filters, elevator: value})} value={filters.elevator}>
             <SelectTrigger>
               <SelectValue placeholder="Elevador" />
             </SelectTrigger>
@@ -533,7 +489,6 @@ const PropertiesPage = () => {
             const activeSub = property.subscriptions?.find(sub => sub.status === 'active');
             const showPhone = activeSub && ['plan_300', 'plan_500', 'plan_1000', 'plan_3000'].includes(activeSub.plan_type);
             const canShare = activeSub && ['plan_1000', 'plan_3000'].includes(activeSub.plan_type);
-            const isFavorite = favorites.includes(property.id);
 
             return (
               <Card 
@@ -561,15 +516,11 @@ const PropertiesPage = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleFavorite(property.id);
                       }}
-                      className={`p-2 rounded-full transition-colors ${
-                        isFavorite 
-                          ? 'bg-red-500 text-white' 
-                          : 'bg-white/80 hover:bg-white text-gray-700'
-                      }`}
+                      className={`p-2 rounded-full transition-colors bg-white/80 text-gray-700 cursor-default`}
+                      disabled
                     >
-                      <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+                      <Heart className="h-4 w-4" />
                     </button>
                     {canShare && (
                       <button

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MapPin, Building, Eye, Bed, Bath, Car, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import PropertyDetailsModal from '@/components/PropertyDetailsModal';
 
 interface Property {
   id: string;
@@ -53,6 +53,8 @@ const PropertiesPage = () => {
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [bedrooms, setBedrooms] = useState<string>('all');
   const [location, setLocation] = useState<string>('');
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchProperties();
@@ -163,6 +165,16 @@ const PropertiesPage = () => {
     }
   };
 
+  const handlePropertyClick = (property: Property) => {
+    setSelectedProperty(property);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedProperty(null);
+  };
+
   const PropertyCard = ({ property }: { property: Property }) => {
     const mainImage = property.property_images?.find(img => img.is_main)?.image_url 
       || property.property_images?.[0]?.image_url 
@@ -172,7 +184,10 @@ const PropertiesPage = () => {
     const showPhone = activeSub && ['plan_300', 'plan_500', 'plan_1000', 'plan_3000'].includes(activeSub.plan_type);
 
     return (
-      <Card className={`overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer ${getPropertyFrame(property.subscriptions)}`}>
+      <Card 
+        className={`overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer ${getPropertyFrame(property.subscriptions)}`}
+        onClick={() => handlePropertyClick(property)}
+      >
         <div className="aspect-video relative">
           <img 
             src={mainImage} 
@@ -361,6 +376,12 @@ const PropertiesPage = () => {
           </div>
         </>
       )}
+      
+      <PropertyDetailsModal 
+        property={selectedProperty}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 };

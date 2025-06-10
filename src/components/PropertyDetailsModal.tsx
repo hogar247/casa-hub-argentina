@@ -3,7 +3,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Building, Eye, Bed, Bath, Car, Star, Phone } from 'lucide-react';
+import { MapPin, Building, Eye, Bed, Bath, Car, Star, Phone, Share } from 'lucide-react';
 
 interface Property {
   id: string;
@@ -71,14 +71,47 @@ const PropertyDetailsModal = ({ property, isOpen, onClose }: PropertyDetailsModa
     }
   };
 
-  const activeSub = property.subscriptions?.find(sub => sub.status === 'active');
-  const showPhone = activeSub && ['plan_300', 'plan_500', 'plan_1000', 'plan_3000'].includes(activeSub.plan_type);
+  const handleShareProperty = async () => {
+    const shareUrl = `${window.location.origin}/properties?id=${property.id}`;
+    const shareText = `Mira esta propiedad: ${property.title} - ${formatPrice(property.price, property.currency)}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: property.title,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (error) {
+        console.log('Error sharing:', error);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+        // Could add a toast here if you have access to toast context
+      } catch (error) {
+        console.error('Could not copy to clipboard:', error);
+      }
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">{property.title}</DialogTitle>
+          <div className="flex justify-between items-start">
+            <DialogTitle className="text-2xl font-bold pr-4">{property.title}</DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShareProperty}
+              className="flex items-center gap-2"
+            >
+              <Share className="h-4 w-4" />
+              Compartir
+            </Button>
+          </div>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -145,7 +178,7 @@ const PropertyDetailsModal = ({ property, isOpen, onClose }: PropertyDetailsModa
             )}
           </div>
 
-          {property.surface_covered && (
+          {property.surface_covered && property.surface_covered > 0 && (
             <div className="text-gray-600">
               <strong>Superficie cubierta:</strong> {property.surface_covered} m²
             </div>
@@ -185,7 +218,7 @@ const PropertyDetailsModal = ({ property, isOpen, onClose }: PropertyDetailsModa
             </div>
           )}
 
-          {/* Contact Information */}
+          {/* Contact Information - Now available for all users */}
           <div className="border-t pt-6">
             <h3 className="text-xl font-semibold mb-4">Información de Contacto</h3>
             <div className="bg-blue-50 p-4 rounded-lg">
@@ -200,7 +233,7 @@ const PropertyDetailsModal = ({ property, isOpen, onClose }: PropertyDetailsModa
                     {property.profiles?.user_type || 'Propietario'}
                   </p>
                   
-                  {showPhone && property.profiles?.phone ? (
+                  {property.profiles?.phone ? (
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-blue-600" />
                       <span className="text-blue-600 font-medium">{property.profiles.phone}</span>
@@ -221,7 +254,7 @@ const PropertyDetailsModal = ({ property, isOpen, onClose }: PropertyDetailsModa
                     </div>
                   ) : (
                     <div className="text-sm text-gray-500">
-                      📞 Contacto disponible con plan Premium
+                      📞 Información de contacto no disponible
                     </div>
                   )}
                 </div>

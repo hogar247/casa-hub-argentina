@@ -43,6 +43,8 @@ interface Property {
   longitude?: number;
   category_id?: string;
   user_id?: string;
+  property_type?: string;
+  contact_phone?: string;
 }
 
 const PropertyForm = () => {
@@ -78,6 +80,8 @@ const PropertyForm = () => {
     features: [],
     amenities: [],
     is_featured: false,
+    property_type: '',
+    contact_phone: '',
   });
 
   useEffect(() => {

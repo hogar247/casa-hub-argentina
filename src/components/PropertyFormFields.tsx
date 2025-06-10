@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, Home, MapPin } from 'lucide-react';
+import { DollarSign, Home, MapPin, Phone, Building } from 'lucide-react';
 import { MEXICO_STATES_MUNICIPALITIES } from '@/data/mexicoStates';
 
 interface Property {
@@ -31,6 +31,8 @@ interface Property {
   features: string[];
   amenities: string[];
   is_featured: boolean;
+  property_type?: string;
+  contact_phone?: string;
 }
 
 interface PropertyFormFieldsProps {
@@ -48,6 +50,11 @@ const COMMON_FEATURES = [
 const COMMON_AMENITIES = [
   'Ascensor', 'Portero', 'Lavandería', 'Estacionamiento', 'Depósito',
   'Parrilla', 'Quincho', 'Sum', 'Sala de juegos', 'Cancha de tenis'
+];
+
+const PROPERTY_TYPES = [
+  'Casa', 'Departamento', 'Oficina', 'Local comercial', 
+  'Terreno', 'Bodega', 'Quinta', 'Penthouse'
 ];
 
 const PropertyFormFields: React.FC<PropertyFormFieldsProps> = ({
@@ -107,7 +114,26 @@ const PropertyFormFields: React.FC<PropertyFormFieldsProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="property_type">Tipo de propiedad</Label>
+              <Select 
+                value={property.property_type || ''} 
+                onValueChange={(value) => setProperty(prev => ({ ...prev, property_type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona el tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROPERTY_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <Label htmlFor="operation_type">Tipo de operación</Label>
               <Select 
@@ -123,7 +149,9 @@ const PropertyFormFields: React.FC<PropertyFormFieldsProps> = ({
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="price">Precio</Label>
               <Input
@@ -151,6 +179,30 @@ const PropertyFormFields: React.FC<PropertyFormFieldsProps> = ({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Contact Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Phone className="h-5 w-5" />
+            Información de Contacto
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="contact_phone">Teléfono de contacto</Label>
+            <Input
+              id="contact_phone"
+              value={property.contact_phone || ''}
+              onChange={(e) => setProperty(prev => ({ ...prev, contact_phone: e.target.value }))}
+              placeholder="Ej: +52 55 1234 5678"
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              Este número aparecerá para que los interesados puedan contactarte
+            </p>
           </div>
         </CardContent>
       </Card>

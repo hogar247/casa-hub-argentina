@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +45,11 @@ interface Property {
     status: string;
   }>;
 }
+
+const PROPERTY_TYPES = [
+  'Casa', 'Departamento', 'Oficina', 'Local comercial', 
+  'Terreno', 'Bodega', 'Quinta', 'Penthouse'
+];
 
 const PropertiesPage = () => {
   const { toast } = useToast();
@@ -147,13 +151,17 @@ const PropertiesPage = () => {
     const matchesState = selectedState === 'all' || property.province === selectedState;
     const matchesCity = selectedCity === 'all' || property.city === selectedCity;
     
+    const matchesPropertyType = propertyType === 'all' || 
+                               (property as any).property_type === propertyType;
+    
     const matchesLocation = !location || 
                            property.city.toLowerCase().includes(location.toLowerCase()) ||
                            property.province.toLowerCase().includes(location.toLowerCase()) ||
                            property.address.toLowerCase().includes(location.toLowerCase());
 
     return matchesSearch && matchesOperation && matchesMinPrice && matchesMaxPrice && 
-           matchesBedrooms && matchesBathrooms && matchesState && matchesCity && matchesLocation;
+           matchesBedrooms && matchesBathrooms && matchesState && matchesCity && 
+           matchesPropertyType && matchesLocation;
   });
 
   const formatPrice = (price: number, currency: string) => {
@@ -318,9 +326,9 @@ const PropertiesPage = () => {
                 <p className="text-xs text-gray-500 capitalize">
                   {property.profiles?.user_type || 'Propietario'}
                 </p>
-                {property.profiles?.phone && (
+                {(property as any).contact_phone && (
                   <p className="text-xs text-blue-600">
-                    📞 {property.profiles.phone}
+                    📞 {(property as any).contact_phone}
                   </p>
                 )}
               </div>
@@ -370,12 +378,28 @@ const PropertiesPage = () => {
                 <SelectValue placeholder="Tipo de operación" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="all">Todas las operaciones</SelectItem>
                 <SelectItem value="sale">Venta</SelectItem>
                 <SelectItem value="rent">Alquiler</SelectItem>
               </SelectContent>
             </Select>
 
+            <Select value={propertyType} onValueChange={setPropertyType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo de propiedad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                {PROPERTY_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <Select value={selectedState} onValueChange={setSelectedState}>
               <SelectTrigger>
                 <SelectValue placeholder="Estado" />
@@ -389,9 +413,7 @@ const PropertiesPage = () => {
                 ))}
               </SelectContent>
             </Select>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             <Select value={selectedCity} onValueChange={setSelectedCity} disabled={selectedState === 'all'}>
               <SelectTrigger>
                 <SelectValue placeholder="Municipio" />
@@ -406,31 +428,17 @@ const PropertiesPage = () => {
               </SelectContent>
             </Select>
 
-            <Input
-              placeholder="Precio mín."
-              type="number"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-            />
-
-            <Input
-              placeholder="Precio máx."
-              type="number"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-            />
-
             <Select value={bedrooms} onValueChange={setBedrooms}>
               <SelectTrigger>
                 <SelectValue placeholder="Habitaciones" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Cualquiera</SelectItem>
-                <SelectItem value="1">1+</SelectItem>
-                <SelectItem value="2">2+</SelectItem>
-                <SelectItem value="3">3+</SelectItem>
-                <SelectItem value="4">4+</SelectItem>
-                <SelectItem value="5">5+</SelectItem>
+                <SelectItem value="all">Cualquier cantidad</SelectItem>
+                <SelectItem value="1">1+ habitaciones</SelectItem>
+                <SelectItem value="2">2+ habitaciones</SelectItem>
+                <SelectItem value="3">3+ habitaciones</SelectItem>
+                <SelectItem value="4">4+ habitaciones</SelectItem>
+                <SelectItem value="5">5+ habitaciones</SelectItem>
               </SelectContent>
             </Select>
 
@@ -439,13 +447,29 @@ const PropertiesPage = () => {
                 <SelectValue placeholder="Baños" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Cualquiera</SelectItem>
-                <SelectItem value="1">1+</SelectItem>
-                <SelectItem value="2">2+</SelectItem>
-                <SelectItem value="3">3+</SelectItem>
-                <SelectItem value="4">4+</SelectItem>
+                <SelectItem value="all">Cualquier cantidad</SelectItem>
+                <SelectItem value="1">1+ baños</SelectItem>
+                <SelectItem value="2">2+ baños</SelectItem>
+                <SelectItem value="3">3+ baños</SelectItem>
+                <SelectItem value="4">4+ baños</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              placeholder="Precio mínimo"
+              type="number"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+            />
+
+            <Input
+              placeholder="Precio máximo"
+              type="number"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+            />
 
             <Input
               placeholder="Ubicación específica"

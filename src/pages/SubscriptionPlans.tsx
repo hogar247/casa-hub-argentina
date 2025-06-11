@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Check, Star, Crown, Zap, Building } from 'lucide-react';
+import { Check, Star, Crown, Zap, Building, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import MercadoPagoButton from '@/components/MercadoPagoButton';
 
 interface Plan {
@@ -23,6 +23,7 @@ interface Plan {
 
 const SubscriptionPlans = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [currentPlan, setCurrentPlan] = useState<string>('basic');
   const [loading, setLoading] = useState(false);
 
@@ -140,27 +141,91 @@ const SubscriptionPlans = () => {
 
   useEffect(() => {
     fetchCurrentPlan();
-  }, [user]);
+    
+    // Verificar parámetros de URL para manejar retorno de Mercado Pago
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const failure = urlParams.get('failure');
+    const pending = urlParams.get('pending');
+    const planParam = urlParams.get('plan');
+
+    if (success === 'true') {
+      toast({
+        title: "¡Pago exitoso!",
+        description: "Tu suscripción se está procesando. El plan se actualizará en unos momentos.",
+      });
+      
+      // Refrescar el plan después de un breve delay para dar tiempo al webhook
+      setTimeout(() => {
+        fetchCurrentPlan();
+      }, 3000);
+      
+      // Limpiar parámetros de URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (failure === 'true') {
+      toast({
+        title: "Pago cancelado",
+        description: "El pago fue cancelado. Puedes intentar nuevamente.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (pending === 'true') {
+      toast({
+        title: "Pago pendiente",
+        description: "Tu pago está siendo procesado. Te notificaremos cuando esté confirmado.",
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [toast]);
 
   const fetchCurrentPlan = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('subscriptions')
-      .select('plan_type')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .single();
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('plan_type')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single();
 
-    if (data) {
-      setCurrentPlan(data.plan_type);
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching subscription:', error);
+        return;
+      }
+
+      if (data) {
+        setCurrentPlan(data.plan_type);
+        console.log('Current plan updated:', data.plan_type);
+      } else {
+        setCurrentPlan('basic');
+      }
+    } catch (error) {
+      console.error('Error fetching current plan:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSuccess = () => {
-    // Recargar el plan actual después de un pago exitoso
+    toast({
+      title: "Procesando pago...",
+      description: "Tu suscripción se actualizará una vez confirmado el pago.",
+    });
+    
+    // Refrescar el plan después de un delay
+    setTimeout(() => {
+      fetchCurrentPlan();
+    }, 5000);
+  };
+
+  const handleRefreshPlan = () => {
     fetchCurrentPlan();
-    alert('¡Suscripción procesada! Tu plan se actualizará una vez confirmado el pago.');
+    toast({
+      title: "Actualizando...",
+      description: "Verificando el estado de tu suscripción.",
+    });
   };
 
   return (
@@ -176,6 +241,20 @@ const SubscriptionPlans = () => {
           <p className="text-sm text-blue-800">
             💳 <strong>Integración con Mercado Pago:</strong> Pagos seguros con tarjetas de crédito, débito y más opciones
           </p>
+        </div>
+        
+        {/* Botón para refrescar el estado del plan */}
+        <div className="mt-4">
+          <Button 
+            onClick={handleRefreshPlan}
+            disabled={loading}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Actualizando...' : 'Actualizar Estado del Plan'}
+          </Button>
         </div>
       </div>
 

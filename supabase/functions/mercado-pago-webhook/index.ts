@@ -22,14 +22,17 @@ serve(async (req) => {
     );
 
     const body = await req.json();
-    console.log('Webhook payload:', body);
+    console.log('Webhook payload:', JSON.stringify(body, null, 2));
 
     // Verificar que es un webhook de pago
     if (body.type === 'payment') {
       const paymentId = body.data.id;
+      console.log('Processing payment ID:', paymentId);
+      
+      // Usar el access token correcto
+      const MP_ACCESS_TOKEN = "TEST-1195552363186700-060621-190210f5b2c446adaf06cd9e1700adc8-301957132";
       
       // Obtener información del pago desde Mercado Pago
-      const MP_ACCESS_TOKEN = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
       const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: {
           'Authorization': `Bearer ${MP_ACCESS_TOKEN}`,
@@ -37,23 +40,27 @@ serve(async (req) => {
       });
 
       if (!paymentResponse.ok) {
+        console.error('Error al obtener información del pago:', paymentResponse.status);
         throw new Error('Error al obtener información del pago');
       }
 
       const payment = await paymentResponse.json();
-      console.log('Payment details:', payment);
+      console.log('Payment details:', JSON.stringify(payment, null, 2));
 
       // Si el pago fue aprobado
       if (payment.status === 'approved') {
         const externalReference = payment.external_reference;
+        console.log('External reference:', externalReference);
         
         if (externalReference) {
           // Extraer información del external_reference (user_id-plan_id-timestamp)
-          const [userId, planId] = externalReference.split('-');
+          const parts = externalReference.split('-');
+          const userId = parts[0];
+          const planId = parts[1];
+          
+          console.log('Updating subscription for user:', userId, 'plan:', planId);
           
           if (userId && planId) {
-            console.log('Updating subscription for user:', userId, 'plan:', planId);
-            
             // Mapear plan_id a configuración de plan
             const planConfigs = {
               'plan_100': { maxProperties: 2, planType: 'plan_100' },
@@ -67,10 +74,16 @@ serve(async (req) => {
             
             if (planConfig) {
               // Desactivar suscripciones previas
-              await supabaseClient
+              const { error: updateError } = await supabaseClient
                 .from('subscriptions')
                 .update({ status: 'inactive' })
                 .eq('user_id', userId);
+
+              if (updateError) {
+                console.error('Error deactivating previous subscriptions:', updateError);
+              } else {
+                console.log('Previous subscriptions deactivated');
+              }
 
               // Crear nueva suscripción activa
               const { error: insertError } = await supabaseClient
@@ -86,15 +99,25 @@ serve(async (req) => {
                 });
 
               if (insertError) {
-                console.error('Error updating subscription:', insertError);
+                console.error('Error creating new subscription:', insertError);
                 throw new Error('Error al actualizar la suscripción');
               }
 
-              console.log('Subscription updated successfully');
+              console.log('Subscription updated successfully for user:', userId);
+            } else {
+              console.error('Plan configuration not found for:', planId);
             }
+          } else {
+            console.error('Could not extract user_id or plan_id from external_reference');
           }
+        } else {
+          console.error('No external_reference found in payment');
         }
+      } else {
+        console.log('Payment not approved, status:', payment.status);
       }
+    } else {
+      console.log('Webhook type not payment:', body.type);
     }
 
     return new Response(JSON.stringify({ success: true }), {
@@ -103,7 +126,10 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Webhook error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

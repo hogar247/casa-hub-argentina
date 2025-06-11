@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Building, Eye, Heart, User, Edit, Trash2, Download, LogOut } from 'lucide-react';
+import { Plus, Building, Eye, Heart, User, Edit, Trash2, Download, LogOut, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
@@ -52,6 +51,7 @@ const Dashboard = () => {
     pendingInquiries: 0
   });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -66,7 +66,7 @@ const Dashboard = () => {
 
     try {
       // Fetch user properties
-      const { data: propertiesData } = await supabase
+      const { data: propertiesData, error: propertiesError } = await supabase
         .from('properties')
         .select(`
           *,
@@ -75,13 +75,28 @@ const Dashboard = () => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
+      if (propertiesError) {
+        console.error('Error fetching properties:', propertiesError);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las propiedades",
+          variant: "destructive",
+        });
+      }
+
       // Fetch user subscription
-      const { data: subscriptionData } = await supabase
+      const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (subscriptionError) {
+        console.error('Error fetching subscription:', subscriptionError);
+      }
 
       if (propertiesData) {
         setProperties(propertiesData);
@@ -100,11 +115,46 @@ const Dashboard = () => {
 
       if (subscriptionData) {
         setSubscription(subscriptionData);
+        console.log('Current subscription:', subscriptionData);
+      } else {
+        // Si no hay suscripción activa, usar plan básico
+        setSubscription({
+          plan_type: 'basic',
+          status: 'active',
+          max_properties: 1
+        });
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+      toast({
+        title: "Error",
+        description: "Error al cargar los datos del usuario",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefreshData = async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    try {
+      await fetchUserData();
+      toast({
+        title: "¡Actualizado!",
+        description: "Los datos han sido actualizados correctamente",
+      });
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron actualizar los datos",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -283,9 +333,21 @@ const Dashboard = () => {
           <p className="text-gray-600">
             Gestiona tus propiedades y revisa las estadísticas
           </p>
-          <p className="text-sm text-blue-600 mt-1">
-            Plan actual: {getPlanName(subscription?.plan_type || 'basic')}
-          </p>
+          <div className="flex items-center gap-4 mt-2">
+            <p className="text-sm text-blue-600">
+              Plan actual: {getPlanName(subscription?.plan_type || 'basic')}
+            </p>
+            <Button 
+              onClick={handleRefreshData}
+              disabled={refreshing}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Actualizando...' : 'Actualizar'}
+            </Button>
+          </div>
         </div>
         <Button 
           onClick={handleLogout}
@@ -517,3 +579,5 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+</edits_to_apply>

@@ -38,6 +38,8 @@ interface PropertyFormFieldsProps {
   setProperty: React.Dispatch<React.SetStateAction<Property>>;
   municipalities: string[];
   onStateChange: (state: string) => void;
+  userPhone?: string;
+  onPhoneChange: (phone: string) => void;
 }
 
 const COMMON_FEATURES = [
@@ -59,7 +61,9 @@ const PropertyFormFields: React.FC<PropertyFormFieldsProps> = ({
   property,
   setProperty,
   municipalities,
-  onStateChange
+  onStateChange,
+  userPhone,
+  onPhoneChange
 }) => {
   const handleFeatureChange = (feature: string, checked: boolean) => {
     setProperty(prev => ({
@@ -177,6 +181,30 @@ const PropertyFormFields: React.FC<PropertyFormFieldsProps> = ({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Contact Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Phone className="h-5 w-5" />
+            Información de Contacto
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="phone">Teléfono de contacto</Label>
+            <Input
+              id="phone"
+              value={userPhone || ''}
+              onChange={(e) => onPhoneChange(e.target.value)}
+              placeholder="Ej: +52 55 1234 5678"
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              Este número aparecerá para que los interesados puedan contactarte
+            </p>
           </div>
         </CardContent>
       </Card>

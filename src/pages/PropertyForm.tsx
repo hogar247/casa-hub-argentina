@@ -56,6 +56,7 @@ const PropertyForm = () => {
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState<Array<{ file?: File; url: string; isMain: boolean }>>([]);
   const [municipalities, setMunicipalities] = useState<string[]>([]);
+  const [userPhone, setUserPhone] = useState<string>('');
 
   const [property, setProperty] = useState<Property>({
     title: '',
@@ -87,10 +88,48 @@ const PropertyForm = () => {
       return;
     }
 
+    fetchUserProfile();
+    
     if (isEditing) {
       fetchProperty();
     }
   }, [user, id, isEditing]);
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setUserPhone(data.phone || '');
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  const updateUserProfile = async (phone: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ phone })
+        .eq('id', user.id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      throw error;
+    }
+  };
 
   const fetchProperty = async () => {
     if (!id) return;
@@ -149,14 +188,21 @@ const PropertyForm = () => {
     setMunicipalities(MEXICO_STATES_MUNICIPALITIES[state] || []);
   };
 
+  const handlePhoneChange = (phone: string) => {
+    setUserPhone(phone);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     setLoading(true);
     try {
+      // Update user profile with phone number
+      await updateUserProfile(userPhone);
+
       // Remove any properties that don't exist in the database schema
-      const { contact_phone, property_images, ...propertyData } = property as any;
+      const { property_images, ...propertyData } = property as any;
       
       const cleanPropertyData = {
         ...propertyData,
@@ -269,6 +315,8 @@ const PropertyForm = () => {
           setProperty={setProperty}
           municipalities={municipalities}
           onStateChange={handleStateChange}
+          userPhone={userPhone}
+          onPhoneChange={handlePhoneChange}
         />
 
         <PropertyImageUpload
@@ -296,3 +344,5 @@ const PropertyForm = () => {
 };
 
 export default PropertyForm;
+
+}

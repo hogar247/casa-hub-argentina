@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,7 +31,6 @@ interface Property {
   amenities: string[];
   is_featured: boolean;
   property_type?: string;
-  contact_phone?: string;
 }
 
 interface PropertyFormFieldsProps {
@@ -179,30 +177,6 @@ const PropertyFormFields: React.FC<PropertyFormFieldsProps> = ({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Contact Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Phone className="h-5 w-5" />
-            Información de Contacto
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="contact_phone">Teléfono de contacto</Label>
-            <Input
-              id="contact_phone"
-              value={property.contact_phone || ''}
-              onChange={(e) => setProperty(prev => ({ ...prev, contact_phone: e.target.value }))}
-              placeholder="Ej: +52 55 1234 5678"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Este número aparecerá para que los interesados puedan contactarte
-            </p>
           </div>
         </CardContent>
       </Card>

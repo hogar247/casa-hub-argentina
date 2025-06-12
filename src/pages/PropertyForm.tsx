@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -150,7 +149,7 @@ const PropertyForm = () => {
       if (error) throw error;
 
       if (data) {
-        // Convert Json types to string arrays and remove contact_phone
+        // Convert Json types to string arrays
         const convertedProperty = {
           ...data,
           features: Array.isArray(data.features) 
@@ -161,9 +160,7 @@ const PropertyForm = () => {
             : []
         };
 
-        // Remove contact_phone if it exists
-        const { contact_phone, ...propertyWithoutPhone } = convertedProperty;
-        setProperty(propertyWithoutPhone);
+        setProperty(convertedProperty);
 
         if (data.property_images) {
           setImages(data.property_images.map((img: any) => ({

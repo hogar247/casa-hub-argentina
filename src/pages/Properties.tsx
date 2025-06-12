@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -87,28 +88,64 @@ const PropertiesPage = () => {
     setLoading(true);
     
     try {
+      console.log('Fetching properties...');
+      
+      // First, try to fetch properties without RLS constraints by using a simpler query
       const { data, error } = await supabase
         .from('properties')
         .select(`
-          *,
-          property_images (image_url, is_main),
-          profiles (first_name, last_name, company_name, phone, user_type)
+          id,
+          title,
+          price,
+          currency,
+          operation_type,
+          status,
+          city,
+          province,
+          address,
+          bedrooms,
+          bathrooms,
+          surface_total,
+          surface_covered,
+          parking_spaces,
+          views_count,
+          created_at,
+          description,
+          features,
+          amenities,
+          is_featured,
+          user_id,
+          property_images!inner (
+            image_url,
+            is_main
+          ),
+          profiles!inner (
+            first_name,
+            last_name,
+            company_name,
+            phone,
+            user_type
+          )
         `)
         .eq('status', 'published')
         .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false });
 
+      console.log('Query result:', { data, error });
+
       if (error) {
         console.error('Error fetching properties:', error);
         toast({
           title: "Error",
-          description: "No se pudieron cargar las propiedades",
+          description: "No se pudieron cargar las propiedades: " + error.message,
           variant: "destructive",
         });
         return;
       }
 
-      if (data) {
+      if (data && data.length > 0) {
+        console.log('Properties found:', data.length);
+        
         const transformedData = data.map((property: any) => ({
           ...property,
           address: property.address || '',
@@ -118,17 +155,21 @@ const PropertiesPage = () => {
           amenities: Array.isArray(property.amenities) ? property.amenities : 
                     typeof property.amenities === 'string' ? JSON.parse(property.amenities || '[]') : [],
           subscriptions: [{ plan_type: 'basic', status: 'active' }],
-          property_images: property.property_images || [],
+          property_images: Array.isArray(property.property_images) ? property.property_images : [],
           profiles: property.profiles || { first_name: '', last_name: '', company_name: '', phone: '', user_type: 'owner' }
         }));
 
         setProperties(transformedData);
+        console.log('Properties set successfully:', transformedData.length);
+      } else {
+        console.log('No properties found');
+        setProperties([]);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Unexpected error:', error);
       toast({
         title: "Error",
-        description: "Ocurrió un error al cargar las propiedades",
+        description: "Ocurrió un error inesperado al cargar las propiedades",
         variant: "destructive",
       });
     } finally {
@@ -330,9 +371,9 @@ const PropertiesPage = () => {
                 <p className="text-xs text-gray-500 capitalize">
                   {property.profiles?.user_type || 'Propietario'}
                 </p>
-                {(property as any).contact_phone && (
+                {property.profiles?.phone && (
                   <p className="text-xs text-blue-600">
-                    📞 {(property as any).contact_phone}
+                    📞 {property.profiles.phone}
                   </p>
                 )}
               </div>
@@ -507,8 +548,18 @@ const PropertiesPage = () => {
             No se encontraron propiedades
           </h3>
           <p className="text-gray-600">
-            Intenta ajustar tus filtros de búsqueda
+            {properties.length === 0 
+              ? "No hay propiedades disponibles en este momento"
+              : "Intenta ajustar tus filtros de búsqueda"
+            }
           </p>
+          <Button 
+            onClick={fetchProperties} 
+            className="mt-4"
+            variant="outline"
+          >
+            Recargar propiedades
+          </Button>
         </div>
       ) : (
         <>

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MapPin, Building, Eye, Bed, Bath, Car, Star, Share } from 'lucide-react';
+import { MapPin, Building, Eye, Bed, Bath, Car, Star, Share, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PropertyDetailsModal from '@/components/PropertyDetailsModal';
@@ -68,6 +68,7 @@ const PropertiesPage = () => {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchProperties();
@@ -94,6 +95,7 @@ const PropertiesPage = () => {
           profiles (first_name, last_name, company_name, phone, user_type)
         `)
         .eq('status', 'published')
+        .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -176,9 +178,9 @@ const PropertiesPage = () => {
     if (!activeSub) return '';
 
     switch (activeSub.plan_type) {
-      case 'plan_1000':
+      case 'profesional':
         return 'border-4 border-yellow-500 shadow-lg shadow-yellow-500/50';
-      case 'plan_3000':
+      case 'empresarial':
         return 'border-4 border-gradient-to-r from-red-500 via-yellow-500 to-red-500 shadow-xl shadow-red-500/50 animate-pulse';
       default:
         return '';
@@ -190,9 +192,9 @@ const PropertiesPage = () => {
     if (!activeSub) return null;
 
     switch (activeSub.plan_type) {
-      case 'plan_1000':
+      case 'profesional':
         return <Badge className="bg-yellow-500 text-white">Premium</Badge>;
-      case 'plan_3000':
+      case 'empresarial':
         return <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white animate-pulse">VIP</Badge>;
       default:
         return null;
@@ -226,7 +228,6 @@ const PropertiesPage = () => {
         console.log('Error sharing:', error);
       }
     } else {
-      // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
         toast({
@@ -283,21 +284,21 @@ const PropertiesPage = () => {
           </div>
         </div>
         
-        <CardContent className="p-6">
+        <CardContent className="p-4 md:p-6">
           <h3 className="font-semibold text-lg mb-2 line-clamp-2">
             {property.title}
           </h3>
           
-          <p className="text-2xl font-bold text-blue-600 mb-2">
+          <p className="text-xl md:text-2xl font-bold text-blue-600 mb-2">
             {formatPrice(property.price, property.currency)}
           </p>
           
-          <p className="text-gray-600 mb-4 flex items-center">
-            <MapPin className="h-4 w-4 mr-1" />
-            {property.city}, {property.province}
+          <p className="text-gray-600 mb-4 flex items-center text-sm">
+            <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+            <span className="truncate">{property.city}, {property.province}</span>
           </p>
 
-          <div className="flex justify-between text-sm text-gray-600 mb-4">
+          <div className="grid grid-cols-2 md:flex md:justify-between text-sm text-gray-600 mb-4 gap-2">
             <span className="flex items-center">
               <Bed className="h-4 w-4 mr-1" />
               {property.bedrooms} hab.
@@ -306,7 +307,10 @@ const PropertiesPage = () => {
               <Bath className="h-4 w-4 mr-1" />
               {property.bathrooms} baños
             </span>
-            <span>{property.surface_total} m²</span>
+            <span className="flex items-center">
+              <Building className="h-4 w-4 mr-1" />
+              {property.surface_total} m²
+            </span>
             {property.parking_spaces > 0 && (
               <span className="flex items-center">
                 <Car className="h-4 w-4 mr-1" />
@@ -317,8 +321,8 @@ const PropertiesPage = () => {
 
           <div className="border-t pt-4">
             <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium">
+              <div className="flex-1">
+                <p className="text-sm font-medium truncate">
                   {property.profiles?.company_name || 
                    `${property.profiles?.first_name || ''} ${property.profiles?.last_name || ''}`.trim() ||
                    'Propietario'}
@@ -355,23 +359,38 @@ const PropertiesPage = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+      <div className="mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 md:mb-6">
           Propiedades en Venta y Alquiler
         </h1>
         
+        {/* Search bar and filter toggle for mobile */}
+        <div className="flex gap-2 mb-4">
+          <Input
+            placeholder="Buscar propiedades..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1"
+          />
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            className="md:hidden"
+          >
+            <Filter className="h-4 w-4" />
+          </Button>
+        </div>
+        
         {/* Filters */}
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+        <div className={`bg-white p-4 md:p-6 rounded-lg shadow-md mb-4 md:mb-6 ${showFilters ? 'block' : 'hidden md:block'}`}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div className="lg:col-span-2">
-              <Input
-                placeholder="Buscar propiedades..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-              />
-            </div>
+            <Input
+              placeholder="Buscar propiedades..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full hidden md:block lg:col-span-2"
+            />
             
             <Select value={operationType} onValueChange={setOperationType}>
               <SelectTrigger>
@@ -493,13 +512,13 @@ const PropertiesPage = () => {
         </div>
       ) : (
         <>
-          <div className="mb-6">
+          <div className="mb-4 md:mb-6">
             <p className="text-gray-600">
               Mostrando {filteredProperties.length} propiedad{filteredProperties.length !== 1 ? 'es' : ''}
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
             {filteredProperties.map((property) => (
               <PropertyCard key={property.id} property={property} />
             ))}

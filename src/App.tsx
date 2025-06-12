@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import PropertyForm from "./pages/PropertyForm";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import UserProfile from "./pages/UserProfile";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/properties/new" element={<PropertyForm />} />
               <Route path="/properties/:id/edit" element={<PropertyForm />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/plans" element={<SubscriptionPlans />} />
               <Route path="/user/:username" element={<UserProfile />} />

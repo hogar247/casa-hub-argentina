@@ -61,13 +61,13 @@ serve(async (req) => {
           console.log('Updating subscription for user:', userId, 'plan:', planId);
           
           if (userId && planId) {
-            // Mapear plan_id a configuración de plan
+            // Mapear plan_id a configuración de plan con nombres correctos
             const planConfigs = {
-              'plan_100': { maxProperties: 2, planType: 'plan_100' },
-              'plan_300': { maxProperties: 5, planType: 'plan_300' },
-              'plan_500': { maxProperties: 10, planType: 'plan_500' },
-              'plan_1000': { maxProperties: 30, planType: 'plan_1000' },
-              'plan_3000': { maxProperties: 100, planType: 'plan_3000' },
+              'plan_100': { maxProperties: 2, planType: 'basico', featuredProperties: 0 },
+              'plan_300': { maxProperties: 5, planType: 'premium', featuredProperties: 2 },
+              'plan_500': { maxProperties: 10, planType: 'avanzado', featuredProperties: 5 },
+              'plan_1000': { maxProperties: 30, planType: 'profesional', featuredProperties: 15 },
+              'plan_3000': { maxProperties: 100, planType: 'empresarial', featuredProperties: 50 },
             };
 
             const planConfig = planConfigs[planId as keyof typeof planConfigs];
@@ -85,7 +85,10 @@ serve(async (req) => {
                 console.log('Previous subscriptions deactivated');
               }
 
-              // Crear nueva suscripción activa
+              // Crear nueva suscripción activa con fecha de expiración
+              const startDate = new Date();
+              const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 días
+
               const { error: insertError } = await supabaseClient
                 .from('subscriptions')
                 .insert({
@@ -93,8 +96,9 @@ serve(async (req) => {
                   plan_type: planConfig.planType,
                   status: 'active',
                   max_properties: planConfig.maxProperties,
-                  starts_at: new Date().toISOString(),
-                  ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 días
+                  featured_properties: planConfig.featuredProperties,
+                  starts_at: startDate.toISOString(),
+                  ends_at: endDate.toISOString(),
                   mercado_pago_subscription_id: paymentId,
                 });
 
@@ -105,12 +109,15 @@ serve(async (req) => {
 
               console.log('Subscription updated successfully for user:', userId, 'to plan:', planConfig.planType);
               
-              // Log del cambio de plan para debugging
+              // Log detallado del cambio de plan
               console.log(`Plan actualizado exitosamente:
                 - Usuario: ${userId}
                 - Plan anterior desactivado
                 - Nuevo plan: ${planConfig.planType}
                 - Máximo propiedades: ${planConfig.maxProperties}
+                - Propiedades destacadas: ${planConfig.featuredProperties}
+                - Inicia: ${startDate.toISOString()}
+                - Expira: ${endDate.toISOString()}
                 - Payment ID: ${paymentId}`);
                 
             } else {

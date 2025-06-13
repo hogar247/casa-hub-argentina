@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Home, Crown, Calendar, Settings } from 'lucide-react';
+import { Users, Home, Crown, Calendar, Settings, Plus, Minus, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -166,6 +165,49 @@ const AdminDashboard = () => {
     }
   };
 
+  const extendSubscription = async (subscriptionId: string, months: number) => {
+    try {
+      const subscription = subscriptions.find(s => s.id === subscriptionId);
+      if (!subscription) return;
+
+      const currentEndDate = new Date(subscription.ends_at);
+      const newEndDate = new Date(currentEndDate);
+      newEndDate.setMonth(newEndDate.getMonth() + months);
+
+      await updateSubscription(subscriptionId, {
+        ends_at: newEndDate.toISOString(),
+        status: 'active'
+      });
+    } catch (error) {
+      console.error('Error extending subscription:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo extender la suscripción",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updatePlanBenefits = async (subscriptionId: string, planType: string) => {
+    const planConfigs = {
+      'basic': { maxProperties: 1, featuredProperties: 0 },
+      'plan_100': { maxProperties: 2, featuredProperties: 0 },
+      'plan_300': { maxProperties: 5, featuredProperties: 2 },
+      'plan_500': { maxProperties: 10, featuredProperties: 5 },
+      'plan_1000': { maxProperties: 30, featuredProperties: 15 },
+      'plan_3000': { maxProperties: 100, featuredProperties: 50 },
+    };
+
+    const config = planConfigs[planType as keyof typeof planConfigs];
+    if (!config) return;
+
+    await updateSubscription(subscriptionId, {
+      plan_type: planType,
+      max_properties: config.maxProperties,
+      featured_properties: config.featuredProperties
+    });
+  };
+
   const togglePropertyFeatured = async (propertyId: string, isFeatured: boolean) => {
     try {
       const updates: any = {
@@ -203,14 +245,62 @@ const AdminDashboard = () => {
     }
   };
 
+  const extendPropertyFeatured = async (propertyId: string, days: number) => {
+    try {
+      const property = properties.find(p => p.id === propertyId);
+      if (!property) return;
+
+      const currentDate = property.featured_until ? new Date(property.featured_until) : new Date();
+      const newDate = new Date(currentDate);
+      newDate.setDate(newDate.getDate() + days);
+
+      const { error } = await supabase
+        .from('properties')
+        .update({
+          is_featured: true,
+          featured_until: newDate.toISOString()
+        })
+        .eq('id', propertyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: `Destacado extendido por ${days} días`,
+      });
+
+      fetchData();
+    } catch (error) {
+      console.error('Error extending featured property:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo extender el destacado",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getPlanBadgeColor = (planType: string) => {
     switch (planType) {
-      case 'basico': return 'bg-gray-500';
-      case 'premium': return 'bg-blue-500';
-      case 'avanzado': return 'bg-green-500';
-      case 'profesional': return 'bg-yellow-500';
-      case 'empresarial': return 'bg-purple-500';
+      case 'basic': return 'bg-gray-500';
+      case 'plan_100': return 'bg-blue-500';
+      case 'plan_300': return 'bg-green-500';
+      case 'plan_500': return 'bg-yellow-500';
+      case 'plan_1000': return 'bg-purple-500';
+      case 'plan_3000': return 'bg-gradient-to-r from-purple-500 to-pink-500';
       default: return 'bg-gray-500';
+    }
+  };
+
+  const getPlanName = (planType: string) => {
+    switch (planType) {
+      case 'basic': return 'Básico (Gratis)';
+      case 'plan_100': return 'Plan $100 MXN/mes';
+      case 'plan_300': return 'Plan $300 MXN/mes';
+      case 'plan_500': return 'Plan $500 MXN/mes';
+      case 'plan_1000': return 'Plan Premium $1000 MXN/mes';
+      case 'plan_3000': return 'Plan VIP $3000 MXN/mes';
+      default: return 'Plan desconocido';
     }
   };
 
@@ -223,10 +313,10 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen dark:bg-gray-900">
         <div className="text-center">
-          <Settings className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Verificando permisos...</p>
+          <Settings className="h-8 w-8 animate-spin mx-auto mb-4 dark:text-white" />
+          <p className="dark:text-white">Verificando permisos...</p>
         </div>
       </div>
     );
@@ -234,12 +324,12 @@ const AdminDashboard = () => {
 
   if (!isAdmin) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
+      <div className="flex items-center justify-center min-h-screen dark:bg-gray-900">
+        <Card className="w-full max-w-md dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="text-center p-6">
             <Crown className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Acceso Denegado</h2>
-            <p className="text-gray-600">No tienes permisos de administrador para acceder a este panel.</p>
+            <h2 className="text-xl font-semibold mb-2 dark:text-white">Acceso Denegado</h2>
+            <p className="text-gray-600 dark:text-gray-300">No tienes permisos de administrador para acceder a este panel.</p>
           </CardContent>
         </Card>
       </div>
@@ -247,11 +337,11 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Panel de Administración</h1>
-          <p className="text-gray-600">Gestiona usuarios, suscripciones y propiedades destacadas</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">Panel de Administración</h1>
+          <p className="text-gray-600 dark:text-gray-300">Gestiona usuarios, suscripciones y propiedades destacadas</p>
         </div>
 
         {/* Tabs para móvil */}
@@ -275,28 +365,28 @@ const AdminDashboard = () => {
         </div>
 
         {activeTab === 'subscriptions' && (
-          <Card>
+          <Card className="dark:bg-gray-800 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 dark:text-white">
                 <Users className="h-5 w-5" />
-                Gestión de Suscripciones
+                Gestión Avanzada de Suscripciones
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {subscriptions.map((subscription) => (
-                  <div key={subscription.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h3 className="font-semibold">
+                  <div key={subscription.id} className="border dark:border-gray-600 rounded-lg p-4 space-y-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg dark:text-white">
                           {subscription.profiles?.company_name || 
                            `${subscription.profiles?.first_name || ''} ${subscription.profiles?.last_name || ''}`.trim() ||
                            'Usuario sin nombre'}
                         </h3>
-                        <p className="text-sm text-gray-600">{subscription.profiles?.email}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{subscription.profiles?.email}</p>
                         <div className="flex flex-wrap gap-2 mt-2">
                           <Badge className={getPlanBadgeColor(subscription.plan_type)}>
-                            {subscription.plan_type.toUpperCase()}
+                            {getPlanName(subscription.plan_type)}
                           </Badge>
                           <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
                             {subscription.status}
@@ -311,69 +401,137 @@ const AdminDashboard = () => {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-                      <div>
-                        <span className="font-medium">Propiedades:</span>
-                        <p>{subscription.property_count}/{subscription.max_properties}</p>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
+                        <span className="font-medium dark:text-white">Propiedades:</span>
+                        <p className="text-lg font-bold dark:text-white">{subscription.property_count}/{subscription.max_properties}</p>
                       </div>
-                      <div>
-                        <span className="font-medium">Destacadas:</span>
-                        <p>{subscription.featured_properties}</p>
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded">
+                        <span className="font-medium dark:text-white">Destacadas:</span>
+                        <p className="text-lg font-bold dark:text-white">{subscription.featured_properties}</p>
                       </div>
-                      <div>
-                        <span className="font-medium">Inicia:</span>
-                        <p>{subscription.starts_at ? format(new Date(subscription.starts_at), 'dd/MM/yyyy', { locale: es }) : 'N/A'}</p>
+                      <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded">
+                        <span className="font-medium dark:text-white">Inicia:</span>
+                        <p className="dark:text-white">{subscription.starts_at ? format(new Date(subscription.starts_at), 'dd/MM/yyyy', { locale: es }) : 'N/A'}</p>
                       </div>
-                      <div>
-                        <span className="font-medium">Expira:</span>
-                        <p className={isExpiringSoon(subscription.ends_at) ? 'text-red-600 font-semibold' : ''}>
+                      <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded">
+                        <span className="font-medium dark:text-white">Expira:</span>
+                        <p className={`${isExpiringSoon(subscription.ends_at) ? 'text-red-600 font-semibold' : 'dark:text-white'}`}>
                           {subscription.ends_at ? format(new Date(subscription.ends_at), 'dd/MM/yyyy', { locale: es }) : 'N/A'}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Select
-                        value={subscription.plan_type}
-                        onValueChange={(value) => updateSubscription(subscription.id, { plan_type: value })}
-                      >
-                        <SelectTrigger className="w-full sm:w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="basico">Básico</SelectItem>
-                          <SelectItem value="premium">Premium</SelectItem>
-                          <SelectItem value="avanzado">Avanzado</SelectItem>
-                          <SelectItem value="profesional">Profesional</SelectItem>
-                          <SelectItem value="empresarial">Empresarial</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    {/* Controles de Plan */}
+                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg space-y-4">
+                      <h4 className="font-semibold dark:text-white">Gestión de Plan</h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2 dark:text-white">Cambiar Plan</label>
+                          <Select
+                            value={subscription.plan_type}
+                            onValueChange={(value) => updatePlanBenefits(subscription.id, value)}
+                          >
+                            <SelectTrigger className="dark:bg-gray-600 dark:border-gray-500">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="dark:bg-gray-800">
+                              <SelectItem value="basic">Básico (Gratis)</SelectItem>
+                              <SelectItem value="plan_100">Plan $100 MXN/mes</SelectItem>
+                              <SelectItem value="plan_300">Plan $300 MXN/mes</SelectItem>
+                              <SelectItem value="plan_500">Plan $500 MXN/mes</SelectItem>
+                              <SelectItem value="plan_1000">Plan Premium $1000 MXN/mes</SelectItem>
+                              <SelectItem value="plan_3000">Plan VIP $3000 MXN/mes</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                      <Select
-                        value={subscription.status}
-                        onValueChange={(value) => updateSubscription(subscription.id, { status: value })}
-                      >
-                        <SelectTrigger className="w-full sm:w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">Activo</SelectItem>
-                          <SelectItem value="inactive">Inactivo</SelectItem>
-                          <SelectItem value="expired">Expirado</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <div>
+                          <label className="block text-sm font-medium mb-2 dark:text-white">Estado</label>
+                          <Select
+                            value={subscription.status}
+                            onValueChange={(value) => updateSubscription(subscription.id, { status: value })}
+                          >
+                            <SelectTrigger className="dark:bg-gray-600 dark:border-gray-500">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="dark:bg-gray-800">
+                              <SelectItem value="active">Activo</SelectItem>
+                              <SelectItem value="inactive">Inactivo</SelectItem>
+                              <SelectItem value="expired">Expirado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const newEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-                          updateSubscription(subscription.id, { ends_at: newEndDate });
-                        }}
-                        className="w-full sm:w-auto"
-                      >
-                        <Calendar className="h-4 w-4 mr-2" />
-                        +30 días
-                      </Button>
+                      {/* Controles de Duración */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2 dark:text-white">Extender Suscripción</label>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => extendSubscription(subscription.id, 1)}
+                            className="flex items-center gap-1"
+                          >
+                            <Plus className="h-3 w-3" />
+                            1 mes
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => extendSubscription(subscription.id, 3)}
+                            className="flex items-center gap-1"
+                          >
+                            <Plus className="h-3 w-3" />
+                            3 meses
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => extendSubscription(subscription.id, 6)}
+                            className="flex items-center gap-1"
+                          >
+                            <Plus className="h-3 w-3" />
+                            6 meses
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => extendSubscription(subscription.id, 12)}
+                            className="flex items-center gap-1"
+                          >
+                            <Plus className="h-3 w-3" />
+                            1 año
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Controles de Propiedades y Destacados */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2 dark:text-white">Límite de Propiedades</label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="1000"
+                            value={subscription.max_properties}
+                            onChange={(e) => updateSubscription(subscription.id, { max_properties: parseInt(e.target.value) })}
+                            className="dark:bg-gray-600 dark:border-gray-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2 dark:text-white">Propiedades Destacadas</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={subscription.featured_properties}
+                            onChange={(e) => updateSubscription(subscription.id, { featured_properties: parseInt(e.target.value) })}
+                            className="dark:bg-gray-600 dark:border-gray-500"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -383,43 +541,78 @@ const AdminDashboard = () => {
         )}
 
         {activeTab === 'properties' && (
-          <Card>
+          <Card className="dark:bg-gray-800 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 dark:text-white">
                 <Home className="h-5 w-5" />
-                Gestión de Propiedades Destacadas
+                Gestión Avanzada de Propiedades Destacadas
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {properties.map((property) => (
-                  <div key={property.id} className="border rounded-lg p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div key={property.id} className="border dark:border-gray-600 rounded-lg p-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                       <div className="flex-1">
-                        <h3 className="font-semibold">{property.title}</h3>
-                        <p className="text-sm text-gray-600">
+                        <h3 className="font-semibold text-lg dark:text-white">{property.title}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                           {property.profiles?.first_name} {property.profiles?.last_name} - {property.profiles?.email}
                         </p>
                         {property.is_featured && property.featured_until && (
-                          <p className="text-xs text-orange-600 mt-1">
+                          <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
                             Destacado hasta: {format(new Date(property.featured_until), 'dd/MM/yyyy HH:mm', { locale: es })}
                           </p>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
+                      
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          {property.is_featured && (
+                            <Badge className="bg-yellow-500">
+                              ⭐ Destacado
+                            </Badge>
+                          )}
+                          <Button
+                            variant={property.is_featured ? "destructive" : "default"}
+                            size="sm"
+                            onClick={() => togglePropertyFeatured(property.id, property.is_featured)}
+                          >
+                            {property.is_featured ? 'Quitar destacado' : 'Destacar'}
+                          </Button>
+                        </div>
+                        
+                        {/* Controles de duración del destacado */}
                         {property.is_featured && (
-                          <Badge className="bg-yellow-500">
-                            ⭐ Destacado
-                          </Badge>
+                          <div className="flex flex-wrap gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => extendPropertyFeatured(property.id, 7)}
+                              className="flex items-center gap-1 text-xs"
+                            >
+                              <Clock className="h-3 w-3" />
+                              +7d
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => extendPropertyFeatured(property.id, 15)}
+                              className="flex items-center gap-1 text-xs"
+                            >
+                              <Clock className="h-3 w-3" />
+                              +15d
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => extendPropertyFeatured(property.id, 30)}
+                              className="flex items-center gap-1 text-xs"
+                            >
+                              <Clock className="h-3 w-3" />
+                              +30d
+                            </Button>
+                          </div>
                         )}
-                        <Button
-                          variant={property.is_featured ? "destructive" : "default"}
-                          size="sm"
-                          onClick={() => togglePropertyFeatured(property.id, property.is_featured)}
-                          className="w-full sm:w-auto"
-                        >
-                          {property.is_featured ? 'Quitar destacado' : 'Destacar'}
-                        </Button>
                       </div>
                     </div>
                   </div>

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Building } from 'lucide-react';
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -92,6 +93,9 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
+          <div className="flex justify-center mb-4">
+            <Building className="h-12 w-12 text-blue-600 dark:text-blue-400" />
+          </div>
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
             Soluciones Inmobiliarias
           </h2>
@@ -103,8 +107,12 @@ const Auth = () => {
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 dark:bg-gray-700">
-              <TabsTrigger value="signin" className="dark:data-[state=active]:bg-gray-600 dark:data-[state=active]:text-white">Iniciar Sesión</TabsTrigger>
-              <TabsTrigger value="signup" className="dark:data-[state=active]:bg-gray-600 dark:data-[state=active]:text-white">Registrarse</TabsTrigger>
+              <TabsTrigger value="signin" className="dark:data-[state=active]:bg-gray-600 dark:data-[state=active]:text-white">
+                Iniciar Sesión
+              </TabsTrigger>
+              <TabsTrigger value="signup" className="dark:data-[state=active]:bg-gray-600 dark:data-[state=active]:text-white">
+                Registrarse
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin">

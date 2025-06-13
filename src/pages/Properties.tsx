@@ -90,7 +90,6 @@ const PropertiesPage = () => {
     try {
       console.log('Fetching properties...');
       
-      // Simplificar la consulta para evitar problemas de RLS
       const { data, error } = await supabase
         .from('properties')
         .select(`
@@ -115,42 +114,11 @@ const PropertiesPage = () => {
 
       if (error) {
         console.error('Error fetching properties:', error);
-        
-        // Si hay error de RLS, intentar una consulta más simple
-        const { data: simpleData, error: simpleError } = await supabase
-          .from('properties')
-          .select('*')
-          .eq('status', 'published')
-          .order('created_at', { ascending: false });
-
-        if (simpleError) {
-          console.error('Simple query also failed:', simpleError);
-          toast({
-            title: "Error",
-            description: "No se pudieron cargar las propiedades. Intenta refrescar la página.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Para la consulta simple, agregar datos por defecto
-        const transformedSimpleData = (simpleData || []).map((property: any) => ({
-          ...property,
-          property_images: [],
-          profiles: {
-            first_name: '',
-            last_name: '',
-            company_name: '',
-            phone: '',
-            user_type: 'owner'
-          },
-          subscriptions: [{ plan_type: 'basic', status: 'active' }],
-          features: Array.isArray(property.features) ? property.features : [],
-          amenities: Array.isArray(property.amenities) ? property.amenities : []
-        }));
-
-        setProperties(transformedSimpleData);
-        console.log('Properties set from simple query:', transformedSimpleData.length);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las propiedades. Intenta refrescar la página.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -161,10 +129,8 @@ const PropertiesPage = () => {
           ...property,
           address: property.address || '',
           surface_covered: property.surface_covered || 0,
-          features: Array.isArray(property.features) ? property.features : 
-                   typeof property.features === 'string' ? JSON.parse(property.features || '[]') : [],
-          amenities: Array.isArray(property.amenities) ? property.amenities : 
-                    typeof property.amenities === 'string' ? JSON.parse(property.amenities || '[]') : [],
+          features: Array.isArray(property.features) ? property.features : [],
+          amenities: Array.isArray(property.amenities) ? property.amenities : [],
           subscriptions: [{ plan_type: 'basic', status: 'active' }],
           property_images: Array.isArray(property.property_images) ? property.property_images : [],
           profiles: property.profiles || { 
@@ -206,7 +172,7 @@ const PropertiesPage = () => {
 
   const filteredProperties = properties.filter(property => {
     const matchesSearch = property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         property.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         property.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          property.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          property.province.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -221,17 +187,14 @@ const PropertiesPage = () => {
     const matchesState = selectedState === 'all' || property.province === selectedState;
     const matchesCity = selectedCity === 'all' || property.city === selectedCity;
     
-    const matchesPropertyType = propertyType === 'all' || 
-                               (property as any).property_type === propertyType;
-    
     const matchesLocation = !location || 
                            property.city.toLowerCase().includes(location.toLowerCase()) ||
                            property.province.toLowerCase().includes(location.toLowerCase()) ||
-                           property.address.toLowerCase().includes(location.toLowerCase());
+                           property.address?.toLowerCase().includes(location.toLowerCase());
 
     return matchesSearch && matchesOperation && matchesMinPrice && matchesMaxPrice && 
            matchesBedrooms && matchesBathrooms && matchesState && matchesCity && 
-           matchesPropertyType && matchesLocation;
+           matchesLocation;
   });
 
   const formatPrice = (price: number, currency: string) => {

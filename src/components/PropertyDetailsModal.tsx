@@ -220,7 +220,7 @@ const PropertyDetailsModal = ({ property, isOpen, onClose }: PropertyDetailsModa
             </div>
           )}
 
-          {/* Contact Information - Now available for all users */}
+          {/* Contact Information */}
           <div className="border-t dark:border-gray-600 pt-6">
             <h3 className="text-xl font-semibold mb-4 dark:text-white">Información de Contacto</h3>
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">

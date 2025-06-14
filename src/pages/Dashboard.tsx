@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -56,20 +55,27 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!user) {
+      console.log("Dashboard: useEffect - No user, navigating to /auth");
       navigate('/auth');
       return;
     }
+    console.log("Dashboard: useEffect[user, navigate] triggered. User ID:", user?.id);
     fetchUserData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, navigate]);
 
   const fetchUserData = async () => {
-    if (!user) return;
-
+    if (!user) {
+      console.log("Dashboard: fetchUserData - no user, returning.");
+      return;
+    }
+    console.log("Dashboard: fetchUserData - START. Current component loading state:", loading);
+    setLoading(true);
     try {
-      setLoading(true);
-      console.log('Fetching user data for:', user.id);
-      
+      console.log('Fetching user data for:', user.id); // Existing log
+
       // Fetch user properties
+      console.log("Dashboard: fetchUserData - Fetching properties...");
       const { data: propertiesData, error: propertiesError } = await supabase
         .from('properties')
         .select(`
@@ -78,18 +84,32 @@ const Dashboard = () => {
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+      console.log("Dashboard: fetchUserData - Properties fetched. Error:", propertiesError, "Data count:", propertiesData?.length);
 
       if (propertiesError) {
         console.error('Error fetching properties:', propertiesError);
         toast({
           title: "Error",
-          description: "No se pudieron cargar las propiedades",
+          description: "No se pudieron cargar las propiedades del usuario.",
           variant: "destructive",
         });
-        return;
+        setProperties([]);
+      } else if (propertiesData) {
+        setProperties(propertiesData);
+        const totalViews = propertiesData.reduce((sum, prop) => sum + (prop.views_count || 0), 0);
+        const publishedCount = propertiesData.filter(prop => prop.status === 'published').length;
+        setStats({
+          totalProperties: propertiesData.length,
+          publishedProperties: publishedCount,
+          totalViews,
+          pendingInquiries: 0 // Assuming this is calculated elsewhere or default
+        });
+      } else {
+        setProperties([]); // Handle case where data is null but no error
       }
 
       // Fetch user subscription
+      console.log("Dashboard: fetchUserData - Fetching subscription...");
       const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('subscriptions')
         .select('*')
@@ -98,31 +118,17 @@ const Dashboard = () => {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      console.log("Dashboard: fetchUserData - Subscription fetched. Error:", subscriptionError, "Data:", subscriptionData);
 
       if (subscriptionError) {
         console.error('Error fetching subscription:', subscriptionError);
-        // No mostrar error al usuario ya que puede ser normal no tener suscripción
-      }
-
-      if (propertiesData) {
-        setProperties(propertiesData);
-        
-        // Calculate stats
-        const totalViews = propertiesData.reduce((sum, prop) => sum + (prop.views_count || 0), 0);
-        const publishedCount = propertiesData.filter(prop => prop.status === 'published').length;
-        
-        setStats({
-          totalProperties: propertiesData.length,
-          publishedProperties: publishedCount,
-          totalViews,
-          pendingInquiries: 0
-        });
+        // No toast to user, as not having a subscription might be normal
       }
 
       if (subscriptionData) {
         setSubscription(subscriptionData);
       } else {
-        // Si no hay suscripción activa, usar plan básico
+        console.log("Dashboard: fetchUserData - No active subscription found, setting basic plan.");
         setSubscription({
           plan_type: 'basic',
           status: 'active',
@@ -130,14 +136,18 @@ const Dashboard = () => {
         });
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error('Dashboard: fetchUserData - CATCH block error:', error);
       toast({
         title: "Error",
-        description: "Error al cargar los datos del usuario",
+        description: "Error al cargar los datos del usuario en el dashboard.",
         variant: "destructive",
       });
+      setProperties([]);
+      setSubscription(null); // Reset subscription on catch
     } finally {
+      console.log("Dashboard: fetchUserData - FINALLY block. Setting loading to false.");
       setLoading(false);
+      console.log("Dashboard: fetchUserData - FINALLY block. setLoading(false) called. Component loading state should be false in next render.");
     }
   };
 
@@ -263,10 +273,19 @@ const Dashboard = () => {
   };
 
   const canCreateProperty = () => {
-    if (!subscription) return properties.length < 1;
-    return properties.length < (subscription.max_properties || 1);
+    if (!subscription) {
+      // If subscription is null (e.g. during initial load or if fetch failed and set it to null)
+      // treat as 0 allowed properties or default to basic plan allowance if that's desired.
+      // For now, let's be conservative: if no subscription info, can't create.
+      // However, fetchUserData sets a basic plan if none found, so subscription shouldn't be null after fetch.
+      console.log("Dashboard: canCreateProperty - Subscription is null. Properties count:", properties.length);
+      return properties.length < 1; // Default to basic plan allowance if subscription is unexpectedly null
+    }
+    const allowed = properties.length < (subscription.max_properties || 0); // Use 0 if max_properties is undefined/null
+    console.log("Dashboard: canCreateProperty - Properties count:", properties.length, "Max properties:", subscription.max_properties, "Allowed:", allowed);
+    return allowed;
   };
-
+  
   const getPlanName = (planType: string) => {
     switch (planType) {
       case 'basic': return 'Básico (Gratis)';
@@ -279,7 +298,9 @@ const Dashboard = () => {
     }
   };
 
+  console.log("Dashboard: Rendering component. Current loading state:", loading);
   if (loading) {
+    console.log("Dashboard: Rendering loading state UI.");
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 dark:bg-gray-900 min-h-screen">
         <div className="text-center">
@@ -288,6 +309,10 @@ const Dashboard = () => {
       </div>
     );
   }
+  console.log("Dashboard: Rendering main content UI.");
+
+  const currentCanCreate = canCreateProperty(); // Call it once for render logic
+  console.log("Dashboard: Value of currentCanCreate for UI:", currentCanCreate);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 dark:bg-gray-900 min-h-screen">
@@ -304,7 +329,7 @@ const Dashboard = () => {
               Plan actual: {getPlanName(subscription?.plan_type || 'basic')}
             </p>
             <Button 
-              onClick={handleRefreshData}
+              onClick={() => { console.log("Dashboard: Refresh button clicked."); handleRefreshData(); }}
               disabled={refreshing}
               variant="outline"
               size="sm"
@@ -326,7 +351,7 @@ const Dashboard = () => {
               <div className="ml-3 sm:ml-4">
                 <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300">Total Propiedades</p>
                 <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
-                  {stats.totalProperties}/{subscription?.max_properties || 1}
+                  {stats.totalProperties}/{subscription?.max_properties || (subscription?.plan_type === 'basic' ? 1 : 0)}
                 </p>
               </div>
             </div>
@@ -376,14 +401,15 @@ const Dashboard = () => {
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <CardTitle className="dark:text-white">Mis Propiedades</CardTitle>
             <div className="flex flex-col sm:flex-row gap-2">
+              {/* ... keep existing code (export button) ... */}
               {subscription && ['plan_1000', 'plan_3000'].includes(subscription.plan_type) && (
-                <Button onClick={exportToExcel} variant="outline" size="sm">
+                <Button onClick={() => { console.log("Dashboard: Export Excel button clicked."); exportToExcel(); }} variant="outline" size="sm">
                   <Download className="h-4 w-4 mr-2" />
                   Exportar Excel
                 </Button>
               )}
-              {canCreateProperty() ? (
-                <Button onClick={() => navigate('/properties/new')} size="sm">
+              {currentCanCreate ? (
+                <Button onClick={() => { console.log("Dashboard: Nueva Propiedad button clicked."); navigate('/properties/new'); }} size="sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Nueva Propiedad
                 </Button>
@@ -404,6 +430,7 @@ const Dashboard = () => {
           </div>
         </CardHeader>
         <CardContent>
+          {/* ... keep existing code (properties list or empty state) ... */}
           {properties.length === 0 ? (
             <div className="text-center py-8">
               <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -413,8 +440,8 @@ const Dashboard = () => {
               <p className="text-gray-600 dark:text-gray-300 mb-4">
                 Comienza publicando tu primera propiedad
               </p>
-              {canCreateProperty() && (
-                <Button onClick={() => navigate('/properties/new')}>
+              {currentCanCreate && ( // Use the pre-calculated value
+                <Button onClick={() => { console.log("Dashboard: Publicar Propiedad (empty state) button clicked."); navigate('/properties/new'); }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Publicar Propiedad
                 </Button>
@@ -438,6 +465,9 @@ const Dashboard = () => {
                             src={mainImage} 
                             alt={property.title}
                             className="w-full h-full object-cover rounded"
+                            onError={e => {
+                              (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
+                            }}
                           />
                         </div>
                       )}
@@ -470,7 +500,7 @@ const Dashboard = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => navigate(`/properties/${property.id}/edit`)}
+                                onClick={() => { console.log(`Dashboard: Edit property ${property.id} button clicked.`); navigate(`/properties/${property.id}/edit`); }}
                               >
                                 <Edit className="h-4 w-4 mr-1" />
                                 Editar
@@ -478,7 +508,7 @@ const Dashboard = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleDeleteProperty(property.id)}
+                                onClick={() => { console.log(`Dashboard: Delete property ${property.id} button clicked.`); handleDeleteProperty(property.id); }}
                                 className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                               >
                                 <Trash2 className="h-4 w-4 mr-1" />
@@ -504,7 +534,7 @@ const Dashboard = () => {
           <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
             Mejora tu plan para más publicaciones y funciones
           </p>
-          <Button onClick={() => navigate('/plans')} className="w-full" size="sm">
+          <Button onClick={() => { console.log("Dashboard: Ver Planes button clicked."); navigate('/plans'); }} className="w-full" size="sm">
             Ver Planes
           </Button>
         </Card>
@@ -515,7 +545,7 @@ const Dashboard = () => {
             ¿Necesitas ayuda? Contacta con soporte
           </p>
           <Button 
-            onClick={() => window.open('https://wa.me/5217717789580', '_blank')}
+            onClick={() => { console.log("Dashboard: WhatsApp button clicked."); window.open('https://wa.me/5217717789580', '_blank'); }}
             className="w-full bg-green-600 hover:bg-green-700"
             size="sm"
           >
@@ -528,7 +558,7 @@ const Dashboard = () => {
           <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
             Explora todas las propiedades disponibles
           </p>
-          <Button onClick={() => navigate('/properties')} variant="outline" className="w-full" size="sm">
+          <Button onClick={() => { console.log("Dashboard: Explorar (properties) button clicked."); navigate('/properties'); }} variant="outline" className="w-full" size="sm">
             Explorar
           </Button>
         </Card>

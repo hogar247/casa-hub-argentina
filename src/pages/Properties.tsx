@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { MapPin, Bed, Bath, Car, Filter, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PropertyDetailsModal from '@/components/PropertyDetailsModal';
+import { MEXICO_STATES_MUNICIPALITIES } from '@/data/mexicoStates';
 
 interface Property {
   id: string;
@@ -45,20 +47,16 @@ const Properties = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [operationType, setOperationType] = useState('');
-  const [province, setProvince] = useState('');
+  const [state, setState] = useState('');
+  const [municipality, setMunicipality] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const { toast } = useToast();
 
-  const provinces = [
-    'Buenos Aires', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba', 'Corrientes',
-    'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza',
-    'Misiones', 'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis',
-    'Santa Cruz', 'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego',
-    'Tucumán'
-  ];
+  const mexicoStates = Object.keys(MEXICO_STATES_MUNICIPALITIES);
+  const municipalities = state ? MEXICO_STATES_MUNICIPALITIES[state] || [] : [];
 
   useEffect(() => {
     fetchProperties();
@@ -92,19 +90,28 @@ const Properties = () => {
       console.log('Properties fetched:', data);
       
       // Map the data to ensure all required properties exist
-      const mappedProperties = (data || []).map(property => ({
-        ...property,
+      const mappedProperties: Property[] = (data || []).map(property => ({
+        id: property.id,
+        title: property.title || '',
         description: property.description || '',
+        price: property.price || 0,
+        currency: property.currency || 'MXN',
+        operation_type: property.operation_type || '',
+        address: property.address || '',
+        city: property.city || '',
+        province: property.province || '',
         bedrooms: property.bedrooms || 0,
         bathrooms: property.bathrooms || 0,
         parking_spaces: property.parking_spaces || 0,
         surface_total: property.surface_total || 0,
         surface_covered: property.surface_covered || 0,
         is_featured: property.is_featured || false,
+        status: property.status || 'draft',
         views_count: property.views_count || 0,
-        features: property.features || [],
-        amenities: property.amenities || [],
-        property_images: property.property_images || [],
+        created_at: property.created_at || '',
+        features: Array.isArray(property.features) ? property.features : [],
+        amenities: Array.isArray(property.amenities) ? property.amenities : [],
+        property_images: Array.isArray(property.property_images) ? property.property_images : [],
         profiles: property.profiles || {
           first_name: '',
           last_name: '',
@@ -132,17 +139,17 @@ const Properties = () => {
                          property.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          property.address.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesOperation = !operationType || property.operation_type === operationType;
-    const matchesProvince = !province || property.province === province;
+    const matchesOperation = !operationType || operationType === 'all' || property.operation_type === operationType;
+    const matchesState = !state || state === 'all' || property.province === state;
     
     const matchesMinPrice = !minPrice || property.price >= parseInt(minPrice);
     const matchesMaxPrice = !maxPrice || property.price <= parseInt(maxPrice);
 
-    return matchesSearch && matchesOperation && matchesProvince && matchesMinPrice && matchesMaxPrice;
+    return matchesSearch && matchesOperation && matchesState && matchesMinPrice && matchesMaxPrice;
   });
 
-  const formatPrice = (price: number, currency: string = 'ARS') => {
-    return new Intl.NumberFormat('es-AR', {
+  const formatPrice = (price: number, currency: string = 'MXN') => {
+    return new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 0,
@@ -158,7 +165,8 @@ const Properties = () => {
   const clearFilters = () => {
     setSearchTerm('');
     setOperationType('');
-    setProvince('');
+    setState('');
+    setMunicipality('');
     setMinPrice('');
     setMaxPrice('');
   };
@@ -183,7 +191,7 @@ const Properties = () => {
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4">
-            Propiedades Disponibles
+            Propiedades Disponibles en México
           </h1>
           
           {/* Mobile Filter Toggle */}
@@ -222,14 +230,17 @@ const Properties = () => {
                 </SelectContent>
               </Select>
 
-              <Select value={province} onValueChange={setProvince}>
+              <Select value={state} onValueChange={(value) => {
+                setState(value);
+                setMunicipality(''); // Reset municipality when state changes
+              }}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Provincia" />
+                  <SelectValue placeholder="Estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {provinces.map((prov) => (
-                    <SelectItem key={prov} value={prov}>{prov}</SelectItem>
+                  <SelectItem value="all">Todos los Estados</SelectItem>
+                  {mexicoStates.map((estado) => (
+                    <SelectItem key={estado} value={estado}>{estado}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -248,6 +259,23 @@ const Properties = () => {
                 onChange={(e) => setMaxPrice(e.target.value)}
               />
             </div>
+
+            {/* Municipality filter - only show if state is selected */}
+            {state && state !== 'all' && municipalities.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Select value={municipality} onValueChange={setMunicipality}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Municipio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los Municipios</SelectItem>
+                    {municipalities.map((municipio) => (
+                      <SelectItem key={municipio} value={municipio}>{municipio}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-2 items-center">
               <Button

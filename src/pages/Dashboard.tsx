@@ -40,7 +40,7 @@ interface UserSubscription {
 }
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [properties, setProperties] = useState<UserProperty[]>([]);
@@ -66,6 +66,9 @@ const Dashboard = () => {
     if (!user) return;
 
     try {
+      setLoading(true);
+      console.log('Fetching user data for:', user.id);
+      
       // Fetch user properties
       const { data: propertiesData, error: propertiesError } = await supabase
         .from('properties')
@@ -83,6 +86,7 @@ const Dashboard = () => {
           description: "No se pudieron cargar las propiedades",
           variant: "destructive",
         });
+        return;
       }
 
       // Fetch user subscription
@@ -97,6 +101,7 @@ const Dashboard = () => {
 
       if (subscriptionError) {
         console.error('Error fetching subscription:', subscriptionError);
+        // No mostrar error al usuario ya que puede ser normal no tener suscripción
       }
 
       if (propertiesData) {
@@ -243,32 +248,11 @@ const Dashboard = () => {
       'Estado de publicación': getStatusText(property.status),
       'Vistas': property.views_count,
       'Fecha de creación': new Date(property.created_at).toLocaleDateString('es-MX'),
-      'Imagen principal': property.property_images?.find(img => img.is_main)?.image_url || 'Sin imagen',
-      'Total de imágenes': property.property_images?.length || 0
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Mis Propiedades');
-
-    // Ajustar ancho de columnas
-    const colWidths = [
-      { wch: 30 }, // Título
-      { wch: 15 }, // Precio
-      { wch: 10 }, // Moneda
-      { wch: 10 }, // Tipo
-      { wch: 20 }, // Ciudad
-      { wch: 20 }, // Estado
-      { wch: 12 }, // Dormitorios
-      { wch: 10 }, // Baños
-      { wch: 15 }, // Superficie
-      { wch: 18 }, // Estado publicación
-      { wch: 10 }, // Vistas
-      { wch: 15 }, // Fecha
-      { wch: 40 }, // Imagen principal
-      { wch: 15 }  // Total imágenes
-    ];
-    worksheet['!cols'] = colWidths;
 
     XLSX.writeFile(workbook, `mis-propiedades-${new Date().toISOString().split('T')[0]}.xlsx`);
 

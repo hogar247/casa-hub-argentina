@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Home, Crown, Calendar, Settings, Plus, Minus, Clock } from 'lucide-react';
+import { Users, Home, Crown, Calendar, Settings, Plus, Clock, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -311,6 +312,22 @@ const AdminDashboard = () => {
     return diffDays <= 7;
   };
 
+  const setCustomEndDate = async (subscriptionId: string, newEndDate: string) => {
+    try {
+      await updateSubscription(subscriptionId, {
+        ends_at: new Date(newEndDate).toISOString(),
+        status: 'active'
+      });
+    } catch (error) {
+      console.error('Error setting custom end date:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la fecha de expiración",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen dark:bg-gray-900">
@@ -464,6 +481,23 @@ const AdminDashboard = () => {
                         </div>
                       </div>
 
+                      {/* Fecha de expiración personalizada */}
+                      <div>
+                        <label className="block text-sm font-medium mb-2 dark:text-white">Fecha de Expiración</label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="datetime-local"
+                            defaultValue={subscription.ends_at ? format(new Date(subscription.ends_at), "yyyy-MM-dd'T'HH:mm") : ''}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                setCustomEndDate(subscription.id, e.target.value);
+                              }
+                            }}
+                            className="dark:bg-gray-600 dark:border-gray-500"
+                          />
+                        </div>
+                      </div>
+
                       {/* Controles de Duración */}
                       <div>
                         <label className="block text-sm font-medium mb-2 dark:text-white">Extender Suscripción</label>
@@ -507,7 +541,7 @@ const AdminDashboard = () => {
                         </div>
                       </div>
 
-                      {/* Controles de Propiedades y Destacados */}
+                      {/* Controles de Límites de Propiedades */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium mb-2 dark:text-white">Límite de Propiedades</label>

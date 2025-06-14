@@ -88,32 +88,24 @@ const PropertiesPage = () => {
     setLoading(true);
     
     try {
-      console.log('Fetching properties...');
+      console.log('Fetching properties from Supabase...');
       
-      const { data, error } = await supabase
+      // Primero obtener las propiedades con sus imágenes
+      const { data: propertiesData, error: propertiesError } = await supabase
         .from('properties')
         .select(`
           *,
           property_images (
             image_url,
             is_main
-          ),
-          profiles (
-            first_name,
-            last_name,
-            company_name,
-            phone,
-            user_type
           )
         `)
         .eq('status', 'published')
         .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false });
 
-      console.log('Query result:', { data, error });
-
-      if (error) {
-        console.error('Error fetching properties:', error);
+      if (propertiesError) {
+        console.error('Error fetching properties:', propertiesError);
         toast({
           title: "Error",
           description: "No se pudieron cargar las propiedades. Intenta refrescar la página.",
@@ -122,28 +114,61 @@ const PropertiesPage = () => {
         return;
       }
 
-      if (data && data.length > 0) {
-        console.log('Properties found:', data.length);
-        
-        const transformedData = data.map((property: any) => ({
-          ...property,
-          address: property.address || '',
-          surface_covered: property.surface_covered || 0,
-          features: Array.isArray(property.features) ? property.features : [],
-          amenities: Array.isArray(property.amenities) ? property.amenities : [],
-          subscriptions: [{ plan_type: 'basic', status: 'active' }],
-          property_images: Array.isArray(property.property_images) ? property.property_images : [],
-          profiles: property.profiles || { 
-            first_name: '', 
-            last_name: '', 
-            company_name: '', 
-            phone: '', 
-            user_type: 'owner' 
-          }
-        }));
+      console.log('Properties fetched:', propertiesData?.length || 0);
 
-        setProperties(transformedData);
-        console.log('Properties set successfully:', transformedData.length);
+      if (propertiesData && propertiesData.length > 0) {
+        // Obtener los perfiles de los usuarios
+        const userIds = [...new Set(propertiesData.map(p => p.user_id).filter(Boolean))];
+        
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+        }
+
+        // Obtener las suscripciones de los usuarios
+        const { data: subscriptionsData, error: subscriptionsError } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .in('user_id', userIds)
+          .eq('status', 'active');
+
+        if (subscriptionsError) {
+          console.error('Error fetching subscriptions:', subscriptionsError);
+        }
+
+        // Combinar los datos
+        const enrichedProperties = propertiesData.map((property: any) => {
+          const profile = profilesData?.find(p => p.id === property.user_id) || {
+            first_name: '',
+            last_name: '',
+            company_name: '',
+            phone: '',
+            user_type: 'owner'
+          };
+
+          const subscription = subscriptionsData?.find(s => s.user_id === property.user_id) || {
+            plan_type: 'basic',
+            status: 'active'
+          };
+
+          return {
+            ...property,
+            address: property.address || '',
+            surface_covered: property.surface_covered || 0,
+            features: Array.isArray(property.features) ? property.features : [],
+            amenities: Array.isArray(property.amenities) ? property.amenities : [],
+            property_images: Array.isArray(property.property_images) ? property.property_images : [],
+            profiles: profile,
+            subscriptions: [subscription]
+          };
+        });
+
+        setProperties(enrichedProperties);
+        console.log('Properties enriched and set successfully:', enrichedProperties.length);
       } else {
         console.log('No properties found');
         setProperties([]);
@@ -233,8 +258,24 @@ const PropertiesPage = () => {
   };
 
   const handlePropertyClick = (property: Property) => {
+    // Incrementar contador de vistas
+    incrementViewCount(property.id);
     setSelectedProperty(property);
     setIsModalOpen(true);
+  };
+
+  const incrementViewCount = async (propertyId: string) => {
+    try {
+      const { error } = await supabase.rpc('increment_property_views', {
+        property_id: propertyId
+      });
+      
+      if (error) {
+        console.error('Error incrementing view count:', error);
+      }
+    } catch (error) {
+      console.error('Error incrementing view count:', error);
+    }
   };
 
   const handleCloseModal = () => {

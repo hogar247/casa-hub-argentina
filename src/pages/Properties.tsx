@@ -41,6 +41,7 @@ interface Property {
     company_name: string;
     phone: string;
     email: string;
+    user_type: string;
   };
 }
 
@@ -73,7 +74,7 @@ const Properties = () => {
         .select(`
           *,
           property_images (image_url, is_main),
-          profiles (first_name, last_name, company_name, phone, email)
+          profiles (first_name, last_name, company_name, phone, email, user_type)
         `)
         .eq('status', 'published')
         .order('is_featured', { ascending: false })
@@ -114,14 +115,15 @@ const Properties = () => {
         features: Array.isArray(property.features) ? property.features : [],
         amenities: Array.isArray(property.amenities) ? property.amenities : [],
         user_id: property.user_id || '',
-        subscriptions: property.subscriptions || null,
+        subscriptions: null,
         property_images: Array.isArray(property.property_images) ? property.property_images : [],
         profiles: property.profiles || {
           first_name: '',
           last_name: '',
           company_name: '',
           phone: '',
-          email: ''
+          email: '',
+          user_type: 'owner'
         }
       }));
       

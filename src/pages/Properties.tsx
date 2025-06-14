@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +26,10 @@ interface Property {
   surface_covered: number;
   is_featured: boolean;
   status: string;
+  views_count: number;
+  created_at: string;
+  features: any[];
+  amenities: any[];
   property_images: { image_url: string; is_main: boolean }[];
   profiles: {
     first_name: string;
@@ -87,7 +90,31 @@ const Properties = () => {
       }
 
       console.log('Properties fetched:', data);
-      setProperties(data || []);
+      
+      // Map the data to ensure all required properties exist
+      const mappedProperties = (data || []).map(property => ({
+        ...property,
+        description: property.description || '',
+        bedrooms: property.bedrooms || 0,
+        bathrooms: property.bathrooms || 0,
+        parking_spaces: property.parking_spaces || 0,
+        surface_total: property.surface_total || 0,
+        surface_covered: property.surface_covered || 0,
+        is_featured: property.is_featured || false,
+        views_count: property.views_count || 0,
+        features: property.features || [],
+        amenities: property.amenities || [],
+        property_images: property.property_images || [],
+        profiles: property.profiles || {
+          first_name: '',
+          last_name: '',
+          company_name: '',
+          phone: '',
+          email: ''
+        }
+      }));
+      
+      setProperties(mappedProperties);
     } catch (error) {
       console.error('Error in fetchProperties:', error);
       toast({
@@ -189,7 +216,7 @@ const Properties = () => {
                   <SelectValue placeholder="Tipo de operación" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="venta">Venta</SelectItem>
                   <SelectItem value="alquiler">Alquiler</SelectItem>
                 </SelectContent>
@@ -200,7 +227,7 @@ const Properties = () => {
                   <SelectValue placeholder="Provincia" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
                   {provinces.map((prov) => (
                     <SelectItem key={prov} value={prov}>{prov}</SelectItem>
                   ))}

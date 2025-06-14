@@ -32,6 +32,8 @@ interface Property {
   created_at: string;
   features: any[];
   amenities: any[];
+  user_id: string;
+  subscriptions: any;
   property_images: { image_url: string; is_main: boolean }[];
   profiles: {
     first_name: string;
@@ -111,6 +113,8 @@ const Properties = () => {
         created_at: property.created_at || '',
         features: Array.isArray(property.features) ? property.features : [],
         amenities: Array.isArray(property.amenities) ? property.amenities : [],
+        user_id: property.user_id || '',
+        subscriptions: property.subscriptions || null,
         property_images: Array.isArray(property.property_images) ? property.property_images : [],
         profiles: property.profiles || {
           first_name: '',
@@ -141,11 +145,12 @@ const Properties = () => {
     
     const matchesOperation = !operationType || operationType === 'all' || property.operation_type === operationType;
     const matchesState = !state || state === 'all' || property.province === state;
+    const matchesMunicipality = !municipality || municipality === 'all' || property.city === municipality;
     
     const matchesMinPrice = !minPrice || property.price >= parseInt(minPrice);
     const matchesMaxPrice = !maxPrice || property.price <= parseInt(maxPrice);
 
-    return matchesSearch && matchesOperation && matchesState && matchesMinPrice && matchesMaxPrice;
+    return matchesSearch && matchesOperation && matchesState && matchesMunicipality && matchesMinPrice && matchesMaxPrice;
   });
 
   const formatPrice = (price: number, currency: string = 'MXN') => {
@@ -225,8 +230,8 @@ const Properties = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="venta">Venta</SelectItem>
-                  <SelectItem value="alquiler">Alquiler</SelectItem>
+                  <SelectItem value="sale">Venta</SelectItem>
+                  <SelectItem value="rent">Alquiler</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -327,7 +332,7 @@ const Properties = () => {
                     variant="secondary" 
                     className="absolute top-2 left-2 bg-blue-600 text-white"
                   >
-                    {property.operation_type === 'venta' ? 'Venta' : 'Alquiler'}
+                    {property.operation_type === 'sale' ? 'Venta' : 'Alquiler'}
                   </Badge>
                 </div>
                 

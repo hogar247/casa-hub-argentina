@@ -14,8 +14,12 @@ const Navbar = () => {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
+    if (isSigningOut) return;
+    
+    setIsSigningOut(true);
     try {
       await signOut();
       setMobileMenuOpen(false);
@@ -28,9 +32,11 @@ const Navbar = () => {
       console.error('Error signing out:', error);
       toast({
         title: "Error",
-        description: "No se pudo cerrar la sesión",
+        description: "No se pudo cerrar la sesión. Intenta nuevamente.",
         variant: "destructive",
       });
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -85,11 +91,12 @@ const Navbar = () => {
                 </Link>
                 <Button 
                   onClick={handleSignOut} 
+                  disabled={isSigningOut}
                   variant="ghost"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
-                  Salir
+                  {isSigningOut ? 'Saliendo...' : 'Salir'}
                 </Button>
               </>
             ) : (
@@ -177,11 +184,12 @@ const Navbar = () => {
                   </Link>
                   <Button 
                     onClick={handleSignOut} 
+                    disabled={isSigningOut}
                     variant="ghost"
-                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
-                    Cerrar Sesión
+                    {isSigningOut ? 'Cerrando Sesión...' : 'Cerrar Sesión'}
                   </Button>
                 </>
               ) : (

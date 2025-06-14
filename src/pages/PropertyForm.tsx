@@ -1,17 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building, Upload, X, MapPin, DollarSign, Home, Camera } from 'lucide-react';
+import { Building } from 'lucide-react';
 import PropertyFormFields from '@/components/PropertyFormFields';
 import PropertyImageUpload from '@/components/PropertyImageUpload';
 import { MEXICO_STATES_MUNICIPALITIES } from '@/data/mexicoStates';
@@ -57,6 +52,7 @@ const PropertyForm = () => {
   const [images, setImages] = useState<Array<{ file?: File; url: string; isMain: boolean }>>([]);
   const [municipalities, setMunicipalities] = useState<string[]>([]);
   const [userPhone, setUserPhone] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
 
   const [property, setProperty] = useState<Property>({
     title: '',
@@ -99,19 +95,23 @@ const PropertyForm = () => {
     if (!user) return;
 
     try {
+      console.log('Fetching user profile for:', user.id);
       const { data, error } = await supabase
         .from('profiles')
         .select('phone')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return;
+      }
 
       if (data) {
         setUserPhone(data.phone || '');
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error in fetchUserProfile:', error);
     }
   };
 
@@ -119,12 +119,17 @@ const PropertyForm = () => {
     if (!user) return;
 
     try {
+      console.log('Updating user profile phone:', phone);
       const { error } = await supabase
         .from('profiles')
         .update({ phone })
         .eq('id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating user profile:', error);
+        throw error;
+      }
+      console.log('User profile updated successfully');
     } catch (error) {
       console.error('Error updating user profile:', error);
       throw error;
@@ -136,6 +141,7 @@ const PropertyForm = () => {
 
     setLoading(true);
     try {
+      console.log('Fetching property:', id);
       const { data, error } = await supabase
         .from('properties')
         .select(`
@@ -144,12 +150,15 @@ const PropertyForm = () => {
         `)
         .eq('id', id)
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching property:', error);
+        throw error;
+      }
 
       if (data) {
-        // Convert Json types to string arrays
+        console.log('Property fetched:', data);
         const convertedProperty = {
           ...data,
           features: Array.isArray(data.features) 
@@ -162,10 +171,10 @@ const PropertyForm = () => {
 
         setProperty(convertedProperty);
 
-        if (data.property_images) {
+        if (data.property_images && Array.isArray(data.property_images)) {
           setImages(data.property_images.map((img: any) => ({
             url: img.image_url,
-            isMain: img.is_main
+            isMain: img.is_main || false
           })));
         }
       }
@@ -190,50 +199,130 @@ const PropertyForm = () => {
     setUserPhone(phone);
   };
 
+  const validateForm = () => {
+    if (!property.title.trim()) {
+      toast({
+        title: "Error",
+        description: "El título es obligatorio",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!property.description.trim()) {
+      toast({
+        title: "Error",
+        description: "La descripción es obligatoria",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (property.price <= 0) {
+      toast({
+        title: "Error",
+        description: "El precio debe ser mayor a 0",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!property.address.trim()) {
+      toast({
+        title: "Error",
+        description: "La dirección es obligatoria",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || submitting) return;
 
-    setLoading(true);
+    if (!validateForm()) return;
+
+    setSubmitting(true);
     try {
-      // Update user profile with phone number
-      await updateUserProfile(userPhone);
-
-      // Remove any properties that don't exist in the database schema
-      const { property_images, ...propertyData } = property as any;
+      console.log('Starting property submission...');
       
-      const cleanPropertyData = {
-        ...propertyData,
+      // Update user profile with phone number
+      if (userPhone.trim()) {
+        await updateUserProfile(userPhone.trim());
+      }
+
+      // Prepare property data
+      const propertyData = {
+        title: property.title.trim(),
+        description: property.description.trim(),
+        price: Number(property.price),
+        currency: property.currency,
+        operation_type: property.operation_type,
+        status: property.status,
+        address: property.address.trim(),
+        city: property.city,
+        province: property.province,
+        postal_code: property.postal_code || '',
+        bedrooms: Number(property.bedrooms) || 1,
+        bathrooms: Number(property.bathrooms) || 1,
+        surface_total: Number(property.surface_total) || 0,
+        surface_covered: Number(property.surface_covered) || 0,
+        parking_spaces: Number(property.parking_spaces) || 0,
+        floor_number: property.floor_number ? Number(property.floor_number) : null,
+        total_floors: property.total_floors ? Number(property.total_floors) : null,
+        features: property.features || [],
+        amenities: property.amenities || [],
+        is_featured: Boolean(property.is_featured),
+        latitude: property.latitude ? Number(property.latitude) : null,
+        longitude: property.longitude ? Number(property.longitude) : null,
+        property_type: property.property_type || '',
         user_id: user.id,
-        features: property.features,
-        amenities: property.amenities
       };
+
+      console.log('Property data to save:', propertyData);
 
       let savedProperty;
       if (isEditing) {
+        console.log('Updating existing property...');
         const { data, error } = await supabase
           .from('properties')
-          .update(cleanPropertyData)
+          .update(propertyData)
           .eq('id', id)
           .eq('user_id', user.id)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating property:', error);
+          throw error;
+        }
         savedProperty = data;
+        console.log('Property updated:', savedProperty);
       } else {
+        console.log('Creating new property...');
         const { data, error } = await supabase
           .from('properties')
-          .insert([cleanPropertyData])
+          .insert([propertyData])
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating property:', error);
+          throw error;
+        }
         savedProperty = data;
+        console.log('Property created:', savedProperty);
       }
 
-      // Handle image uploads
-      await handleImageUploads(savedProperty.id);
+      // Handle image uploads only if there are new images
+      const newImages = images.filter(img => img.file);
+      if (newImages.length > 0) {
+        console.log('Uploading images...', newImages.length);
+        await handleImageUploads(savedProperty.id);
+      }
 
       toast({
         title: "Éxito",
@@ -245,42 +334,60 @@ const PropertyForm = () => {
       console.error('Error saving property:', error);
       toast({
         title: "Error",
-        description: `No se pudo ${isEditing ? 'actualizar' : 'crear'} la propiedad`,
+        description: `No se pudo ${isEditing ? 'actualizar' : 'crear'} la propiedad. ${error instanceof Error ? error.message : 'Error desconocido'}`,
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   const handleImageUploads = async (propertyId: string) => {
+    console.log('Starting image uploads for property:', propertyId);
+    
     for (let i = 0; i < images.length; i++) {
       const image = images[i];
       if (image.file) {
-        const fileExt = image.file.name.split('.').pop();
-        const fileName = `${propertyId}/${Date.now()}-${i}.${fileExt}`;
+        try {
+          console.log(`Uploading image ${i + 1}/${images.length}`);
+          const fileExt = image.file.name.split('.').pop();
+          const fileName = `${propertyId}/${Date.now()}-${i}.${fileExt}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(fileName, image.file);
+          const { error: uploadError } = await supabase.storage
+            .from('property-images')
+            .upload(fileName, image.file, {
+              cacheControl: '3600',
+              upsert: false
+            });
 
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          continue;
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            continue;
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('property-images')
+            .getPublicUrl(fileName);
+
+          console.log('Image uploaded, saving to database:', publicUrl);
+
+          const { error: dbError } = await supabase
+            .from('property_images')
+            .insert({
+              property_id: propertyId,
+              image_url: publicUrl,
+              is_main: image.isMain,
+              sort_order: i
+            });
+
+          if (dbError) {
+            console.error('Database error saving image:', dbError);
+          } else {
+            console.log('Image saved to database successfully');
+          }
+        } catch (error) {
+          console.error('Error processing image:', error);
         }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('property-images')
-          .getPublicUrl(fileName);
-
-        await supabase
-          .from('property_images')
-          .insert({
-            property_id: propertyId,
-            image_url: publicUrl,
-            is_main: image.isMain,
-            sort_order: i
-          });
       }
     }
   };
@@ -299,10 +406,10 @@ const PropertyForm = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
           {isEditing ? 'Editar Propiedad' : 'Crear Nueva Propiedad'}
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-300">
           {isEditing ? 'Actualiza los datos de tu propiedad' : 'Completa la información de tu propiedad'}
         </p>
       </div>
@@ -329,11 +436,15 @@ const PropertyForm = () => {
             type="button"
             variant="outline"
             onClick={() => navigate('/dashboard')}
+            disabled={submitting}
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Crear Propiedad')}
+          <Button 
+            type="submit" 
+            disabled={submitting || loading}
+          >
+            {submitting ? 'Guardando...' : (isEditing ? 'Actualizar Propiedad' : 'Crear Propiedad')}
           </Button>
         </div>
       </form>

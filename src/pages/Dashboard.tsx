@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Building, Eye, Heart, User, Edit, Trash2, Download, LogOut, RefreshCw } from 'lucide-react';
+import { Plus, Building, Eye, Heart, Edit, Trash2, Download, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
@@ -115,7 +116,6 @@ const Dashboard = () => {
 
       if (subscriptionData) {
         setSubscription(subscriptionData);
-        console.log('Current subscription:', subscriptionData);
       } else {
         // Si no hay suscripción activa, usar plan básico
         setSubscription({
@@ -278,26 +278,8 @@ const Dashboard = () => {
     });
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/');
-      toast({
-        title: "Sesión cerrada",
-        description: "Has cerrado sesión correctamente",
-      });
-    } catch (error) {
-      console.error('Error signing out:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo cerrar la sesión",
-        variant: "destructive",
-      });
-    }
-  };
-
   const canCreateProperty = () => {
-    if (!subscription) return properties.length < 1; // Basic plan: 1 property
+    if (!subscription) return properties.length < 1;
     return properties.length < (subscription.max_properties || 1);
   };
 
@@ -349,15 +331,6 @@ const Dashboard = () => {
             </Button>
           </div>
         </div>
-        <Button 
-          onClick={handleLogout}
-          variant="outline"
-          className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-600 dark:hover:bg-red-900/20 self-start sm:self-auto"
-          size="sm"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Cerrar Sesión
-        </Button>
       </div>
 
       {/* Stats Cards */}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -5,17 +6,32 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Building, User, LogOut, Plus, CreditCard, Moon, Sun, Menu, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-    setMobileMenuOpen(false);
+    try {
+      await signOut();
+      setMobileMenuOpen(false);
+      navigate('/');
+      toast({
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión correctamente",
+      });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cerrar la sesión",
+        variant: "destructive",
+      });
+    }
   };
 
   const toggleTheme = () => {

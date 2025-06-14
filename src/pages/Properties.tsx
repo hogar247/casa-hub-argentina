@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -61,14 +60,10 @@ const Properties = () => {
   const mexicoStates = Object.keys(MEXICO_STATES_MUNICIPALITIES);
   const municipalities = state ? MEXICO_STATES_MUNICIPALITIES[state] || [] : [];
 
-  useEffect(() => {
-    fetchProperties();
-  }, []);
-
+  // Nueva función robusta para obtener propiedades
   const fetchProperties = async () => {
+    setLoading(true);
     try {
-      console.log('Fetching properties from Supabase...');
-      
       const { data, error } = await supabase
         .from('properties')
         .select(`
@@ -81,23 +76,21 @@ const Properties = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching properties:', error);
         toast({
           title: "Error",
           description: "No se pudieron cargar las propiedades",
           variant: "destructive",
         });
+        setProperties([]);
         return;
       }
 
-      console.log('Properties fetched:', data);
-      
-      // Map the data to ensure all required properties exist
-      const mappedProperties: Property[] = (data || []).map(property => ({
+      // Mapear y asegurar que las claves críticas existen
+      const mapped: Property[] = (data || []).map(property => ({
         id: property.id,
         title: property.title || '',
         description: property.description || '',
-        price: property.price || 0,
+        price: Number(property.price) || 0,
         currency: property.currency || 'MXN',
         operation_type: property.operation_type || '',
         address: property.address || '',
@@ -123,22 +116,27 @@ const Properties = () => {
           company_name: '',
           phone: '',
           email: '',
-          user_type: 'owner'
-        }
+          user_type: 'owner',
+        },
       }));
-      
-      setProperties(mappedProperties);
+
+      setProperties(mapped);
     } catch (error) {
-      console.error('Error in fetchProperties:', error);
       toast({
-        title: "Error",
-        description: "Error inesperado al cargar las propiedades",
+        title: "Error inesperado",
+        description: "No se pudieron cargar los inmuebles.",
         variant: "destructive",
       });
+      setProperties([]);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchProperties();
+    // eslint-disable-next-line
+  }, []);
 
   const filteredProperties = properties.filter(property => {
     const matchesSearch = property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

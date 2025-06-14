@@ -48,6 +48,7 @@ interface Filters {
 }
 
 export function useProperties() {
+  console.log("useProperties: Hook initialized"); // Log
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<Filters>({
@@ -67,8 +68,10 @@ export function useProperties() {
       : [];
 
   const fetchProperties = async () => {
-    setLoading(true);
+    console.log("useProperties: fetchProperties started. Current loading state:", loading); // Log
+    setLoading(true); // Ensure it's true before fetch
     try {
+      console.log("useProperties: Attempting to fetch properties from Supabase..."); // Log
       const { data, error } = await supabase
         .from("properties")
         .select(
@@ -82,7 +85,10 @@ export function useProperties() {
         .order("is_featured", { ascending: false })
         .order("created_at", { ascending: false });
 
+      console.log("useProperties: Supabase fetch completed. Error:", error, "Data:", data ? `Received ${data.length} items` : "No data"); // Log
+
       if (error) {
+        console.error("useProperties: Error fetching properties:", error); // Log
         toast({
           title: "Error",
           description: "No se pudieron cargar las propiedades",
@@ -128,9 +134,10 @@ export function useProperties() {
             user_type: "owner",
           },
       }));
-
+      console.log("useProperties: Properties mapped:", mapped.length, "items. Current loading state before setProperties:", loading); // Log
       setProperties(mapped);
     } catch (error) {
+      console.error("useProperties: Catch block error during fetchProperties:", error); // Log
       toast({
         title: "Error inesperado",
         description: "No se pudieron cargar los inmuebles.",
@@ -138,13 +145,16 @@ export function useProperties() {
       });
       setProperties([]);
     } finally {
+      console.log("useProperties: fetchProperties finally block. Setting loading to false. Current loading state:", loading); // Log
       setLoading(false);
+      console.log("useProperties: fetchProperties finally block. Loading state AFTER setLoading(false)."); // Log
     }
   };
 
   useEffect(() => {
+    console.log("useProperties: useEffect[] triggered. Calling fetchProperties."); // Log
     fetchProperties();
-    // eslint-disable-next-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Función para filtrar propiedades según los filtros seleccionados
@@ -173,6 +183,8 @@ export function useProperties() {
       matchesMaxPrice
     );
   });
+  // console.log("useProperties: filteredProperties calculated:", filteredProperties.length, "items. Current loading state:", loading); // Log (optional, can be noisy)
+
 
   const setFilter = (name: string, value: string) => {
     setFilters((prev) => ({ ...prev, [name]: value }));
@@ -191,6 +203,7 @@ export function useProperties() {
     });
   };
 
+  console.log("useProperties: Hook returning. Loading state:", loading, "Filtered properties count:", filteredProperties.length); // Log
   return {
     properties,
     filteredProperties,
@@ -202,3 +215,4 @@ export function useProperties() {
     municipalities,
   };
 }
+

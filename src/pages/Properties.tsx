@@ -6,6 +6,7 @@ import PropertyFilters from "@/components/PropertyFilters";
 import PropertiesGrid from "@/components/PropertiesGrid";
 
 const Properties = () => {
+  console.log("Properties: Component rendering/rerendering"); // Log
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<ReturnType<typeof useProperties>["filteredProperties"][number] | null>(null);
 
@@ -19,7 +20,10 @@ const Properties = () => {
     municipalities,
   } = useProperties();
 
+  console.log("Properties: State from useProperties hook. Loading:", loading, "Filtered properties count:", filteredProperties.length); // Log
+
   if (loading) {
+    console.log("Properties: Rendering loading state."); // Log
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
         <div className="max-w-7xl mx-auto">
@@ -36,6 +40,7 @@ const Properties = () => {
     );
   }
 
+  console.log("Properties: Rendering main content. Filtered properties count:", filteredProperties.length); // Log
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
       <div className="max-w-7xl mx-auto">
@@ -71,3 +76,4 @@ const Properties = () => {
 };
 
 export default Properties;
+

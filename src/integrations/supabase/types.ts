@@ -9,60 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      admin_audit_log: {
-        Row: {
-          action_type: string
-          admin_user_id: string | null
-          changes: Json | null
-          created_at: string | null
-          id: string
-          target_id: string | null
-          target_table: string
-        }
-        Insert: {
-          action_type: string
-          admin_user_id?: string | null
-          changes?: Json | null
-          created_at?: string | null
-          id?: string
-          target_id?: string | null
-          target_table: string
-        }
-        Update: {
-          action_type?: string
-          admin_user_id?: string | null
-          changes?: Json | null
-          created_at?: string | null
-          id?: string
-          target_id?: string | null
-          target_table?: string
-        }
-        Relationships: []
-      }
-      admin_users: {
-        Row: {
-          created_at: string | null
-          email: string
-          id: string
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          id?: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          id?: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -368,31 +314,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      extend_property_featured: {
-        Args: { property_id: string; days_to_add: number }
-        Returns: undefined
-      }
-      extend_subscription: {
-        Args: { subscription_id: string; months_to_add: number }
-        Returns: undefined
-      }
-      get_admin_stats: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      is_admin: {
-        Args: { user_uuid: string }
-        Returns: boolean
-      }
-      update_plan_benefits: {
-        Args: {
-          subscription_id: string
-          new_plan_type: string
-          new_max_properties?: number
-          new_featured_properties?: number
-        }
-        Returns: undefined
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never

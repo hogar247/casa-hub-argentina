@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -167,11 +168,11 @@ const Dashboard = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'published': return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20';
-      case 'draft': return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20';
-      case 'sold': return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20';
-      case 'suspended': return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20';
-      default: return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800';
+      case 'published': return 'text-green-600 bg-green-100';
+      case 'draft': return 'text-yellow-600 bg-yellow-100';
+      case 'sold': return 'text-blue-600 bg-blue-100';
+      case 'suspended': return 'text-red-600 bg-red-100';
+      default: return 'text-gray-600 bg-gray-100';
     }
   };
 
@@ -315,26 +316,26 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 dark:bg-gray-900 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">
-          <p className="dark:text-white">Cargando panel de control...</p>
+          <p>Cargando panel de control...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 dark:bg-gray-900 min-h-screen">
-      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Panel de Control
           </h1>
-          <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">
+          <p className="text-gray-600">
             Gestiona tus propiedades y revisa las estadísticas
           </p>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
-            <p className="text-sm text-blue-600 dark:text-blue-400">
+          <div className="flex items-center gap-4 mt-2">
+            <p className="text-sm text-blue-600">
               Plan actual: {getPlanName(subscription?.plan_type || 'basic')}
             </p>
             <Button 
@@ -342,7 +343,7 @@ const Dashboard = () => {
               disabled={refreshing}
               variant="outline"
               size="sm"
-              className="flex items-center gap-2 self-start sm:self-auto"
+              className="flex items-center gap-2"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'Actualizando...' : 'Actualizar'}
@@ -352,8 +353,7 @@ const Dashboard = () => {
         <Button 
           onClick={handleLogout}
           variant="outline"
-          className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-600 dark:hover:bg-red-900/20 self-start sm:self-auto"
-          size="sm"
+          className="text-red-600 border-red-300 hover:bg-red-50"
         >
           <LogOut className="h-4 w-4 mr-2" />
           Cerrar Sesión
@@ -361,14 +361,14 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardContent className="p-4 sm:p-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center">
-              <Building className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400" />
-              <div className="ml-3 sm:ml-4">
-                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300">Total Propiedades</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
+              <Building className="h-8 w-8 text-blue-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Total Propiedades</p>
+                <p className="text-2xl font-bold text-gray-900">
                   {stats.totalProperties}/{subscription?.max_properties || 1}
                 </p>
               </div>
@@ -376,37 +376,37 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardContent className="p-4 sm:p-6">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center">
-              <Eye className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 dark:text-green-400" />
-              <div className="ml-3 sm:ml-4">
-                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300">Publicadas</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.publishedProperties}</p>
+              <Eye className="h-8 w-8 text-green-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Publicadas</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.publishedProperties}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardContent className="p-4 sm:p-6">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center">
-              <Eye className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 dark:text-purple-400" />
-              <div className="ml-3 sm:ml-4">
-                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300">Total Vistas</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.totalViews}</p>
+              <Eye className="h-8 w-8 text-purple-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Total Vistas</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalViews}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardContent className="p-4 sm:p-6">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center">
-              <Heart className="h-6 w-6 sm:h-8 sm:w-8 text-red-600 dark:text-red-400" />
-              <div className="ml-3 sm:ml-4">
-                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300">Consultas</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.pendingInquiries}</p>
+              <Heart className="h-8 w-8 text-red-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Consultas</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.pendingInquiries}</p>
               </div>
             </div>
           </CardContent>
@@ -414,30 +414,30 @@ const Dashboard = () => {
       </div>
 
       {/* Properties Section */}
-      <Card className="dark:bg-gray-800 dark:border-gray-700">
+      <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <CardTitle className="dark:text-white">Mis Propiedades</CardTitle>
-            <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex justify-between items-center">
+            <CardTitle>Mis Propiedades</CardTitle>
+            <div className="flex gap-2">
               {subscription && ['plan_1000', 'plan_3000'].includes(subscription.plan_type) && (
-                <Button onClick={exportToExcel} variant="outline" size="sm">
+                <Button onClick={exportToExcel} variant="outline">
                   <Download className="h-4 w-4 mr-2" />
                   Exportar Excel
                 </Button>
               )}
               {canCreateProperty() ? (
-                <Button onClick={() => navigate('/properties/new')} size="sm">
+                <Button onClick={() => navigate('/properties/new')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nueva Propiedad
                 </Button>
               ) : (
                 <div className="text-center">
-                  <Button disabled size="sm">
+                  <Button disabled>
                     <Plus className="h-4 w-4 mr-2" />
                     Límite Alcanzado
                   </Button>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    <a href="/plans" className="text-blue-600 dark:text-blue-400 hover:underline">
+                  <p className="text-xs text-gray-500 mt-1">
+                    <a href="/plans" className="text-blue-600 hover:underline">
                       Actualiza tu plan
                     </a>
                   </p>
@@ -450,10 +450,10 @@ const Dashboard = () => {
           {properties.length === 0 ? (
             <div className="text-center py-8">
               <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
                 No tienes propiedades aún
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">
+              <p className="text-gray-600 mb-4">
                 Comienza publicando tu primera propiedad
               </p>
               {canCreateProperty() && (
@@ -472,11 +472,11 @@ const Dashboard = () => {
                 return (
                   <div 
                     key={property.id} 
-                    className="border dark:border-gray-600 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    className="border rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
-                    <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex gap-4">
                       {mainImage && (
-                        <div className="w-full sm:w-24 h-24 flex-shrink-0">
+                        <div className="w-24 h-24 flex-shrink-0">
                           <img 
                             src={mainImage} 
                             alt={property.title}
@@ -485,31 +485,31 @@ const Dashboard = () => {
                         </div>
                       )}
                       <div className="flex-1">
-                        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+                        <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-base sm:text-lg mb-2 dark:text-white">{property.title}</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                            <h3 className="font-semibold text-lg mb-2">{property.title}</h3>
+                            <p className="text-sm text-gray-600 mb-2">
                               {property.city}, {property.province}
                             </p>
-                            <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mb-2">
+                            <p className="text-lg font-bold text-blue-600 mb-2">
                               {formatPrice(property.price, property.currency)}
                             </p>
-                            <div className="flex flex-wrap gap-2 sm:gap-4 text-sm text-gray-600 dark:text-gray-300">
+                            <div className="flex gap-4 text-sm text-gray-600">
                               <span>{property.bedrooms} hab.</span>
                               <span>{property.bathrooms} baños</span>
                               <span>{property.surface_total} m²</span>
                             </div>
                           </div>
-                          <div className="text-left lg:text-right">
+                          <div className="text-right">
                             <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(property.status)}`}>
                               {getStatusText(property.status)}
                             </span>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                              {property.views_count || 0} vistas
+                            <p className="text-sm text-gray-600 mt-2">
+                              {property.views_count} vistas
                             </p>
                             
                             {/* Action buttons */}
-                            <div className="flex flex-wrap gap-2 mt-3">
+                            <div className="flex gap-2 mt-3">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -522,7 +522,7 @@ const Dashboard = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleDeleteProperty(property.id)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
                               >
                                 <Trash2 className="h-4 w-4 mr-1" />
                                 Eliminar
@@ -541,37 +541,36 @@ const Dashboard = () => {
       </Card>
 
       {/* Quick Actions */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-        <Card className="p-4 sm:p-6 text-center dark:bg-gray-800 dark:border-gray-700">
-          <h3 className="font-semibold mb-2 dark:text-white">Actualizar Plan</h3>
-          <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="p-6 text-center">
+          <h3 className="font-semibold mb-2">Actualizar Plan</h3>
+          <p className="text-gray-600 text-sm mb-4">
             Mejora tu plan para más publicaciones y funciones
           </p>
-          <Button onClick={() => navigate('/plans')} className="w-full" size="sm">
+          <Button onClick={() => navigate('/plans')} className="w-full">
             Ver Planes
           </Button>
         </Card>
 
-        <Card className="p-4 sm:p-6 text-center dark:bg-gray-800 dark:border-gray-700">
-          <h3 className="font-semibold mb-2 dark:text-white">Soporte</h3>
-          <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
+        <Card className="p-6 text-center">
+          <h3 className="font-semibold mb-2">Soporte</h3>
+          <p className="text-gray-600 text-sm mb-4">
             ¿Necesitas ayuda? Contacta con soporte
           </p>
           <Button 
             onClick={() => window.open('https://wa.me/5217717789580', '_blank')}
             className="w-full bg-green-600 hover:bg-green-700"
-            size="sm"
           >
             WhatsApp
           </Button>
         </Card>
 
-        <Card className="p-4 sm:p-6 text-center dark:bg-gray-800 dark:border-gray-700">
-          <h3 className="font-semibold mb-2 dark:text-white">Ver Propiedades</h3>
-          <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
+        <Card className="p-6 text-center">
+          <h3 className="font-semibold mb-2">Ver Propiedades</h3>
+          <p className="text-gray-600 text-sm mb-4">
             Explora todas las propiedades disponibles
           </p>
-          <Button onClick={() => navigate('/properties')} variant="outline" className="w-full" size="sm">
+          <Button onClick={() => navigate('/properties')} variant="outline" className="w-full">
             Explorar
           </Button>
         </Card>

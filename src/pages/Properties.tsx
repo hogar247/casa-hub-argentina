@@ -4,10 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MapPin, Building, Eye, Bed, Bath, Car, Star } from 'lucide-react';
+import { MapPin, Building, Eye, Bed, Bath, Car, Star, Share } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PropertyDetailsModal from '@/components/PropertyDetailsModal';
+import { MEXICO_STATES_MUNICIPALITIES } from '@/data/mexicoStates';
 
 interface Property {
   id: string;
@@ -18,9 +19,11 @@ interface Property {
   status: string;
   city: string;
   province: string;
+  address: string;
   bedrooms: number;
   bathrooms: number;
   surface_total: number;
+  surface_covered: number;
   parking_spaces: number;
   views_count: number;
   created_at: string;
@@ -43,6 +46,11 @@ interface Property {
   }>;
 }
 
+const PROPERTY_TYPES = [
+  'Casa', 'Departamento', 'Oficina', 'Local comercial', 
+  'Terreno', 'Bodega', 'Quinta', 'Penthouse'
+];
+
 const PropertiesPage = () => {
   const { toast } = useToast();
   const [properties, setProperties] = useState<Property[]>([]);
@@ -52,13 +60,27 @@ const PropertiesPage = () => {
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [bedrooms, setBedrooms] = useState<string>('all');
+  const [bathrooms, setBathrooms] = useState<string>('all');
+  const [selectedState, setSelectedState] = useState<string>('all');
+  const [selectedCity, setSelectedCity] = useState<string>('all');
+  const [propertyType, setPropertyType] = useState<string>('all');
   const [location, setLocation] = useState<string>('');
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
 
   useEffect(() => {
     fetchProperties();
   }, []);
+
+  useEffect(() => {
+    if (selectedState !== 'all') {
+      setAvailableCities(MEXICO_STATES_MUNICIPALITIES[selectedState] || []);
+      setSelectedCity('all');
+    } else {
+      setAvailableCities([]);
+    }
+  }, [selectedState]);
 
   const fetchProperties = async () => {
     setLoading(true);
@@ -87,6 +109,8 @@ const PropertiesPage = () => {
       if (data) {
         const transformedData = data.map((property: any) => ({
           ...property,
+          address: property.address || '',
+          surface_covered: property.surface_covered || 0,
           features: Array.isArray(property.features) ? property.features : 
                    typeof property.features === 'string' ? JSON.parse(property.features || '[]') : [],
           amenities: Array.isArray(property.amenities) ? property.amenities : 
@@ -122,12 +146,22 @@ const PropertiesPage = () => {
     const matchesMaxPrice = !maxPrice || property.price <= parseFloat(maxPrice);
     
     const matchesBedrooms = bedrooms === 'all' || property.bedrooms >= parseInt(bedrooms);
+    const matchesBathrooms = bathrooms === 'all' || property.bathrooms >= parseInt(bathrooms);
+    
+    const matchesState = selectedState === 'all' || property.province === selectedState;
+    const matchesCity = selectedCity === 'all' || property.city === selectedCity;
+    
+    const matchesPropertyType = propertyType === 'all' || 
+                               (property as any).property_type === propertyType;
     
     const matchesLocation = !location || 
                            property.city.toLowerCase().includes(location.toLowerCase()) ||
-                           property.province.toLowerCase().includes(location.toLowerCase());
+                           property.province.toLowerCase().includes(location.toLowerCase()) ||
+                           property.address.toLowerCase().includes(location.toLowerCase());
 
-    return matchesSearch && matchesOperation && matchesMinPrice && matchesMaxPrice && matchesBedrooms && matchesLocation;
+    return matchesSearch && matchesOperation && matchesMinPrice && matchesMaxPrice && 
+           matchesBedrooms && matchesBathrooms && matchesState && matchesCity && 
+           matchesPropertyType && matchesLocation;
   });
 
   const formatPrice = (price: number, currency: string) => {
@@ -175,17 +209,48 @@ const PropertiesPage = () => {
     setSelectedProperty(null);
   };
 
+  const handleShareProperty = async (property: Property, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const shareUrl = `${window.location.origin}/properties?id=${property.id}`;
+    const shareText = `Mira esta propiedad: ${property.title} - ${formatPrice(property.price, property.currency)}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: property.title,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (error) {
+        console.log('Error sharing:', error);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+        toast({
+          title: "¡Enlace copiado!",
+          description: "El enlace de la propiedad se ha copiado al portapapeles",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudo copiar el enlace",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const PropertyCard = ({ property }: { property: Property }) => {
     const mainImage = property.property_images?.find(img => img.is_main)?.image_url 
       || property.property_images?.[0]?.image_url 
       || '/placeholder.svg';
 
-    const activeSub = property.subscriptions?.find(sub => sub.status === 'active');
-    const showPhone = activeSub && ['plan_300', 'plan_500', 'plan_1000', 'plan_3000'].includes(activeSub.plan_type);
-
     return (
       <Card 
-        className={`overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer ${getPropertyFrame(property.subscriptions)}`}
+        className={`overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer relative ${getPropertyFrame(property.subscriptions)}`}
         onClick={() => handlePropertyClick(property)}
       >
         <div className="aspect-video relative">
@@ -200,14 +265,22 @@ const PropertiesPage = () => {
             </Badge>
             {getUserBadge(property.subscriptions)}
           </div>
-          {property.is_featured && (
-            <div className="absolute top-4 right-4">
+          <div className="absolute top-4 right-4 flex gap-2">
+            {property.is_featured && (
               <Badge className="bg-yellow-500 text-white flex items-center gap-1">
                 <Star className="h-3 w-3 fill-current" />
                 Destacado
               </Badge>
-            </div>
-          )}
+            )}
+            <Button
+              size="sm"
+              variant="secondary"
+              className="bg-white/80 hover:bg-white text-gray-700"
+              onClick={(e) => handleShareProperty(property, e)}
+            >
+              <Share className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
         <CardContent className="p-6">
@@ -253,9 +326,9 @@ const PropertiesPage = () => {
                 <p className="text-xs text-gray-500 capitalize">
                   {property.profiles?.user_type || 'Propietario'}
                 </p>
-                {showPhone && property.profiles?.phone && (
+                {(property as any).contact_phone && (
                   <p className="text-xs text-blue-600">
-                    📞 {property.profiles.phone}
+                    📞 {(property as any).contact_phone}
                   </p>
                 )}
               </div>
@@ -290,7 +363,7 @@ const PropertiesPage = () => {
         
         {/* Filters */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div className="lg:col-span-2">
               <Input
                 placeholder="Buscar propiedades..."
@@ -302,49 +375,106 @@ const PropertiesPage = () => {
             
             <Select value={operationType} onValueChange={setOperationType}>
               <SelectTrigger>
-                <SelectValue placeholder="Tipo" />
+                <SelectValue placeholder="Tipo de operación" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="all">Todas las operaciones</SelectItem>
                 <SelectItem value="sale">Venta</SelectItem>
                 <SelectItem value="rent">Alquiler</SelectItem>
               </SelectContent>
             </Select>
 
-            <Input
-              placeholder="Precio mín."
-              type="number"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-            />
+            <Select value={propertyType} onValueChange={setPropertyType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo de propiedad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                {PROPERTY_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            <Input
-              placeholder="Precio máx."
-              type="number"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <Select value={selectedState} onValueChange={setSelectedState}>
+              <SelectTrigger>
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                {Object.keys(MEXICO_STATES_MUNICIPALITIES).map((state) => (
+                  <SelectItem key={state} value={state}>
+                    {state}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedCity} onValueChange={setSelectedCity} disabled={selectedState === 'all'}>
+              <SelectTrigger>
+                <SelectValue placeholder="Municipio" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los municipios</SelectItem>
+                {availableCities.map((city) => (
+                  <SelectItem key={city} value={city}>
+                    {city}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             <Select value={bedrooms} onValueChange={setBedrooms}>
               <SelectTrigger>
                 <SelectValue placeholder="Habitaciones" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Cualquiera</SelectItem>
-                <SelectItem value="1">1+</SelectItem>
-                <SelectItem value="2">2+</SelectItem>
-                <SelectItem value="3">3+</SelectItem>
-                <SelectItem value="4">4+</SelectItem>
+                <SelectItem value="all">Cualquier cantidad</SelectItem>
+                <SelectItem value="1">1+ habitaciones</SelectItem>
+                <SelectItem value="2">2+ habitaciones</SelectItem>
+                <SelectItem value="3">3+ habitaciones</SelectItem>
+                <SelectItem value="4">4+ habitaciones</SelectItem>
+                <SelectItem value="5">5+ habitaciones</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={bathrooms} onValueChange={setBathrooms}>
+              <SelectTrigger>
+                <SelectValue placeholder="Baños" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Cualquier cantidad</SelectItem>
+                <SelectItem value="1">1+ baños</SelectItem>
+                <SelectItem value="2">2+ baños</SelectItem>
+                <SelectItem value="3">3+ baños</SelectItem>
+                <SelectItem value="4">4+ baños</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          
-          <div className="mt-4">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input
-              placeholder="Ubicación (ciudad, estado)"
+              placeholder="Precio mínimo"
+              type="number"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+            />
+
+            <Input
+              placeholder="Precio máximo"
+              type="number"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+            />
+
+            <Input
+              placeholder="Ubicación específica"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full"
             />
           </div>
         </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,6 +42,7 @@ interface Property {
   longitude?: number;
   category_id?: string;
   user_id?: string;
+  property_type?: string;
 }
 
 const PropertyForm = () => {
@@ -56,6 +56,7 @@ const PropertyForm = () => {
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState<Array<{ file?: File; url: string; isMain: boolean }>>([]);
   const [municipalities, setMunicipalities] = useState<string[]>([]);
+  const [userPhone, setUserPhone] = useState<string>('');
 
   const [property, setProperty] = useState<Property>({
     title: '',
@@ -78,6 +79,7 @@ const PropertyForm = () => {
     features: [],
     amenities: [],
     is_featured: false,
+    property_type: '',
   });
 
   useEffect(() => {
@@ -86,10 +88,48 @@ const PropertyForm = () => {
       return;
     }
 
+    fetchUserProfile();
+    
     if (isEditing) {
       fetchProperty();
     }
   }, [user, id, isEditing]);
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setUserPhone(data.phone || '');
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  const updateUserProfile = async (phone: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ phone })
+        .eq('id', user.id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      throw error;
+    }
+  };
 
   const fetchProperty = async () => {
     if (!id) return;
@@ -109,7 +149,7 @@ const PropertyForm = () => {
       if (error) throw error;
 
       if (data) {
-        // Convert Json types to string arrays
+        // Convert Json types to string arrays and remove contact_phone
         const convertedProperty = {
           ...data,
           features: Array.isArray(data.features) 
@@ -120,7 +160,9 @@ const PropertyForm = () => {
             : []
         };
 
-        setProperty(convertedProperty);
+        // Remove contact_phone if it exists
+        const { contact_phone, ...propertyWithoutPhone } = convertedProperty;
+        setProperty(propertyWithoutPhone);
 
         if (data.property_images) {
           setImages(data.property_images.map((img: any) => ({
@@ -146,14 +188,24 @@ const PropertyForm = () => {
     setMunicipalities(MEXICO_STATES_MUNICIPALITIES[state] || []);
   };
 
+  const handlePhoneChange = (phone: string) => {
+    setUserPhone(phone);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     setLoading(true);
     try {
-      const propertyData = {
-        ...property,
+      // Update user profile with phone number
+      await updateUserProfile(userPhone);
+
+      // Remove any properties that don't exist in the database schema
+      const { property_images, ...propertyData } = property as any;
+      
+      const cleanPropertyData = {
+        ...propertyData,
         user_id: user.id,
         features: property.features,
         amenities: property.amenities
@@ -163,7 +215,7 @@ const PropertyForm = () => {
       if (isEditing) {
         const { data, error } = await supabase
           .from('properties')
-          .update(propertyData)
+          .update(cleanPropertyData)
           .eq('id', id)
           .eq('user_id', user.id)
           .select()
@@ -174,7 +226,7 @@ const PropertyForm = () => {
       } else {
         const { data, error } = await supabase
           .from('properties')
-          .insert([propertyData])
+          .insert([cleanPropertyData])
           .select()
           .single();
 
@@ -263,6 +315,8 @@ const PropertyForm = () => {
           setProperty={setProperty}
           municipalities={municipalities}
           onStateChange={handleStateChange}
+          userPhone={userPhone}
+          onPhoneChange={handlePhoneChange}
         />
 
         <PropertyImageUpload
@@ -290,3 +344,5 @@ const PropertyForm = () => {
 };
 
 export default PropertyForm;
+
+}

@@ -63,6 +63,7 @@ const MercadoPagoButton: React.FC<MercadoPagoButtonProps> = ({
         expires: true,
         expiration_date_from: new Date().toISOString(),
         expiration_date_to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 horas
+        notification_url: `https://ynioxthsnoaenoqilxaz.supabase.co/functions/v1/mercado-pago-webhook`,
       };
 
       console.log('Creating Mercado Pago preference:', preference);

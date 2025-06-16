@@ -1,9 +1,9 @@
 
 import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Home, Building, User, LogOut, Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { Building, User, LogOut, Plus, CreditCard } from 'lucide-react';
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
@@ -19,78 +19,48 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <div 
-              className="flex items-center space-x-2 cursor-pointer"
-              onClick={() => navigate('/')}
-            >
+            <Link to="/" className="flex items-center space-x-2">
               <Building className="h-8 w-8 text-blue-600" />
               <span className="text-xl font-bold text-gray-900">
-                Soluciones Inmobiliarias
+                InmoPlus
               </span>
-            </div>
+            </Link>
           </div>
 
           <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/')}
-              className="flex items-center space-x-2"
-            >
-              <Home className="h-4 w-4" />
-              <span>Inicio</span>
-            </Button>
-
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/properties')}
-              className="flex items-center space-x-2"
-            >
-              <Building className="h-4 w-4" />
-              <span>Propiedades</span>
-            </Button>
-
+            <Link to="/properties">
+              <Button variant="ghost">Propiedades</Button>
+            </Link>
+            
             {user ? (
               <>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/dashboard')}
-                  className="flex items-center space-x-2"
-                >
-                  <User className="h-4 w-4" />
-                  <span>Dashboard</span>
-                </Button>
-                
-                <Button
-                  onClick={() => navigate('/properties/new')}
-                  className="flex items-center space-x-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Publicar</span>
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  onClick={handleSignOut}
-                  className="flex items-center space-x-2 text-red-600 hover:text-red-700"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Salir</span>
+                <Link to="/dashboard">
+                  <Button variant="ghost">
+                    <User className="h-4 w-4 mr-2" />
+                    Dashboard
+                  </Button>
+                </Link>
+                <Link to="/properties/new">
+                  <Button variant="ghost">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Publicar
+                  </Button>
+                </Link>
+                <Link to="/plans">
+                  <Button variant="ghost">
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Planes
+                  </Button>
+                </Link>
+                <Button onClick={handleSignOut} variant="ghost">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Salir
                 </Button>
               </>
             ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate('/auth')}
-                >
-                  Iniciar Sesión
-                </Button>
-                <Button
-                  onClick={() => navigate('/auth?tab=signup')}
-                >
-                  Registrarse
-                </Button>
-              </>
+              <Link to="/auth">
+                <Button>Iniciar Sesión</Button>
+              </Link>
             )}
           </div>
         </div>

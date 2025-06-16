@@ -16,8 +16,8 @@ serve(async (req) => {
     console.log('Webhook received from Mercado Pago');
     
     const supabaseClient = createClient(
-      "https://ynioxthsnoaenoqilxaz.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InluaW94dGhzbm9hZW5vcWlseGF6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTI3NjUyOCwiZXhwIjoyMDY0ODUyNTI4fQ.E2OgXY8_QYmn4mQU5Yfs9GtLI-8KD7NW8M0QP80vicE",
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } }
     );
 
@@ -103,16 +103,7 @@ serve(async (req) => {
                 throw new Error('Error al actualizar la suscripción');
               }
 
-              console.log('Subscription updated successfully for user:', userId, 'to plan:', planConfig.planType);
-              
-              // Log del cambio de plan para debugging
-              console.log(`Plan actualizado exitosamente:
-                - Usuario: ${userId}
-                - Plan anterior desactivado
-                - Nuevo plan: ${planConfig.planType}
-                - Máximo propiedades: ${planConfig.maxProperties}
-                - Payment ID: ${paymentId}`);
-                
+              console.log('Subscription updated successfully for user:', userId);
             } else {
               console.error('Plan configuration not found for:', planId);
             }
@@ -129,11 +120,7 @@ serve(async (req) => {
       console.log('Webhook type not payment:', body.type);
     }
 
-    return new Response(JSON.stringify({ 
-      success: true,
-      message: 'Webhook processed successfully',
-      timestamp: new Date().toISOString()
-    }), {
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
@@ -141,8 +128,7 @@ serve(async (req) => {
     console.error('Webhook error:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
-      timestamp: new Date().toISOString(),
-      success: false
+      timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

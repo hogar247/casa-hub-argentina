@@ -149,7 +149,7 @@ const PropertyForm = () => {
       if (error) throw error;
 
       if (data) {
-        // Convert Json types to string arrays
+        // Convert Json types to string arrays and remove contact_phone
         const convertedProperty = {
           ...data,
           features: Array.isArray(data.features) 
@@ -160,7 +160,9 @@ const PropertyForm = () => {
             : []
         };
 
-        setProperty(convertedProperty);
+        // Remove contact_phone if it exists
+        const { contact_phone, ...propertyWithoutPhone } = convertedProperty;
+        setProperty(propertyWithoutPhone);
 
         if (data.property_images) {
           setImages(data.property_images.map((img: any) => ({
@@ -342,3 +344,5 @@ const PropertyForm = () => {
 };
 
 export default PropertyForm;
+
+}

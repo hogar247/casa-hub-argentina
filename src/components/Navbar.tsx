@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,38 +5,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Building, User, LogOut, Plus, CreditCard, Moon, Sun, Menu, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-  const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
-    if (isSigningOut) return;
-    
-    setIsSigningOut(true);
-    try {
-      await signOut();
-      setMobileMenuOpen(false);
-      navigate('/');
-      toast({
-        title: "Sesión cerrada",
-        description: "Has cerrado sesión correctamente",
-      });
-    } catch (error) {
-      console.error('Error signing out:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo cerrar la sesión. Intenta nuevamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSigningOut(false);
-    }
+    await signOut();
+    navigate('/');
+    setMobileMenuOpen(false);
   };
 
   const toggleTheme = () => {
@@ -91,12 +69,11 @@ const Navbar = () => {
                 </Link>
                 <Button 
                   onClick={handleSignOut} 
-                  disabled={isSigningOut}
                   variant="ghost"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
-                  {isSigningOut ? 'Saliendo...' : 'Salir'}
+                  Salir
                 </Button>
               </>
             ) : (
@@ -184,12 +161,11 @@ const Navbar = () => {
                   </Link>
                   <Button 
                     onClick={handleSignOut} 
-                    disabled={isSigningOut}
                     variant="ghost"
-                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50"
+                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
-                    {isSigningOut ? 'Cerrando Sesión...' : 'Cerrar Sesión'}
+                    Cerrar Sesión
                   </Button>
                 </>
               ) : (

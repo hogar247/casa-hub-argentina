@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Building, Eye, Heart, Edit, Trash2, Download, RefreshCw } from 'lucide-react';
+import { Plus, Building, Eye, Heart, User, Edit, Trash2, Download, LogOut, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
@@ -40,7 +39,7 @@ interface UserSubscription {
 }
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [properties, setProperties] = useState<UserProperty[]>([]);
@@ -66,9 +65,6 @@ const Dashboard = () => {
     if (!user) return;
 
     try {
-      setLoading(true);
-      console.log('Fetching user data for:', user.id);
-      
       // Fetch user properties
       const { data: propertiesData, error: propertiesError } = await supabase
         .from('properties')
@@ -86,7 +82,6 @@ const Dashboard = () => {
           description: "No se pudieron cargar las propiedades",
           variant: "destructive",
         });
-        return;
       }
 
       // Fetch user subscription
@@ -101,7 +96,6 @@ const Dashboard = () => {
 
       if (subscriptionError) {
         console.error('Error fetching subscription:', subscriptionError);
-        // No mostrar error al usuario ya que puede ser normal no tener suscripción
       }
 
       if (propertiesData) {
@@ -121,6 +115,7 @@ const Dashboard = () => {
 
       if (subscriptionData) {
         setSubscription(subscriptionData);
+        console.log('Current subscription:', subscriptionData);
       } else {
         // Si no hay suscripción activa, usar plan básico
         setSubscription({
@@ -248,11 +243,32 @@ const Dashboard = () => {
       'Estado de publicación': getStatusText(property.status),
       'Vistas': property.views_count,
       'Fecha de creación': new Date(property.created_at).toLocaleDateString('es-MX'),
+      'Imagen principal': property.property_images?.find(img => img.is_main)?.image_url || 'Sin imagen',
+      'Total de imágenes': property.property_images?.length || 0
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Mis Propiedades');
+
+    // Ajustar ancho de columnas
+    const colWidths = [
+      { wch: 30 }, // Título
+      { wch: 15 }, // Precio
+      { wch: 10 }, // Moneda
+      { wch: 10 }, // Tipo
+      { wch: 20 }, // Ciudad
+      { wch: 20 }, // Estado
+      { wch: 12 }, // Dormitorios
+      { wch: 10 }, // Baños
+      { wch: 15 }, // Superficie
+      { wch: 18 }, // Estado publicación
+      { wch: 10 }, // Vistas
+      { wch: 15 }, // Fecha
+      { wch: 40 }, // Imagen principal
+      { wch: 15 }  // Total imágenes
+    ];
+    worksheet['!cols'] = colWidths;
 
     XLSX.writeFile(workbook, `mis-propiedades-${new Date().toISOString().split('T')[0]}.xlsx`);
 
@@ -262,8 +278,26 @@ const Dashboard = () => {
     });
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/');
+      toast({
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión correctamente",
+      });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cerrar la sesión",
+        variant: "destructive",
+      });
+    }
+  };
+
   const canCreateProperty = () => {
-    if (!subscription) return properties.length < 1;
+    if (!subscription) return properties.length < 1; // Basic plan: 1 property
     return properties.length < (subscription.max_properties || 1);
   };
 
@@ -315,6 +349,15 @@ const Dashboard = () => {
             </Button>
           </div>
         </div>
+        <Button 
+          onClick={handleLogout}
+          variant="outline"
+          className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-600 dark:hover:bg-red-900/20 self-start sm:self-auto"
+          size="sm"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Cerrar Sesión
+        </Button>
       </div>
 
       {/* Stats Cards */}

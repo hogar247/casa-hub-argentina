@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +26,6 @@ const SubscriptionPlans = () => {
   const { toast } = useToast();
   const [currentPlan, setCurrentPlan] = useState<string>('basic');
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   const plans: Plan[] = [
     {
@@ -142,15 +140,14 @@ const SubscriptionPlans = () => {
   ];
 
   useEffect(() => {
-    if (user) {
-      fetchCurrentPlan();
-    }
+    fetchCurrentPlan();
     
     // Verificar parámetros de URL para manejar retorno de Mercado Pago
     const urlParams = new URLSearchParams(window.location.search);
     const success = urlParams.get('success');
     const failure = urlParams.get('failure');
     const pending = urlParams.get('pending');
+    const planParam = urlParams.get('plan');
 
     if (success === 'true') {
       toast({
@@ -160,9 +157,7 @@ const SubscriptionPlans = () => {
       
       // Refrescar el plan después de un breve delay para dar tiempo al webhook
       setTimeout(() => {
-        if (user) {
-          fetchCurrentPlan();
-        }
+        fetchCurrentPlan();
       }, 3000);
       
       // Limpiar parámetros de URL
@@ -181,26 +176,22 @@ const SubscriptionPlans = () => {
       });
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [user, toast]);
+  }, [toast]);
 
   const fetchCurrentPlan = async () => {
     if (!user) return;
 
     setLoading(true);
     try {
-      console.log('Fetching subscription for user:', user.id);
-      
       const { data, error } = await supabase
         .from('subscriptions')
         .select('plan_type')
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .maybeSingle();
+        .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('Error fetching subscription:', error);
-        // No mostrar error al usuario, usar plan básico por defecto
-        setCurrentPlan('basic');
         return;
       }
 
@@ -208,12 +199,10 @@ const SubscriptionPlans = () => {
         setCurrentPlan(data.plan_type);
         console.log('Current plan updated:', data.plan_type);
       } else {
-        console.log('No active subscription found, using basic plan');
         setCurrentPlan('basic');
       }
     } catch (error) {
       console.error('Error fetching current plan:', error);
-      setCurrentPlan('basic');
     } finally {
       setLoading(false);
     }
@@ -227,57 +216,17 @@ const SubscriptionPlans = () => {
     
     // Refrescar el plan después de un delay
     setTimeout(() => {
-      if (user) {
-        fetchCurrentPlan();
-      }
+      fetchCurrentPlan();
     }, 5000);
   };
 
-  const handleRefreshPlan = async () => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "Debes iniciar sesión para actualizar tu plan.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setRefreshing(true);
-    try {
-      await fetchCurrentPlan();
-      toast({
-        title: "Plan actualizado",
-        description: "Se ha verificado el estado de tu suscripción.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el estado del plan.",
-        variant: "destructive",
-      });
-    } finally {
-      setRefreshing(false);
-    }
+  const handleRefreshPlan = () => {
+    fetchCurrentPlan();
+    toast({
+      title: "Actualizando...",
+      description: "Verificando el estado de tu suscripción.",
+    });
   };
-
-  if (!user) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Planes de Suscripción
-          </h1>
-          <p className="text-xl text-gray-600 mb-8">
-            Debes iniciar sesión para ver y gestionar tus planes
-          </p>
-          <Button onClick={() => window.location.href = '/auth'}>
-            Iniciar Sesión
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -298,24 +247,15 @@ const SubscriptionPlans = () => {
         <div className="mt-4">
           <Button 
             onClick={handleRefreshPlan}
-            disabled={loading || refreshing}
+            disabled={loading}
             variant="outline"
             size="sm"
             className="flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${(loading || refreshing) ? 'animate-spin' : ''}`} />
-            {loading || refreshing ? 'Actualizando...' : 'Actualizar Estado del Plan'}
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Actualizando...' : 'Actualizar Estado del Plan'}
           </Button>
         </div>
-
-        {/* Mostrar plan actual */}
-        {!loading && (
-          <div className="mt-4 p-3 bg-green-50 rounded-lg">
-            <p className="text-sm text-green-800">
-              <strong>Plan actual:</strong> {plans.find(p => p.id === currentPlan)?.name || 'Básico'}
-            </p>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

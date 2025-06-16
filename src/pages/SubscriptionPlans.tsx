@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Check, Star, Crown, Zap } from 'lucide-react';
+import { Check, Star, Crown, Zap, Building } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import MercadoPagoButton from '@/components/MercadoPagoButton';
 
 interface Plan {
   id: string;
@@ -156,35 +157,10 @@ const SubscriptionPlans = () => {
     }
   };
 
-  const handleUpgrade = async (planId: string) => {
-    if (!user) return;
-
-    setLoading(true);
-    
-    try {
-      // Aquí integrarías con Mercado Pago
-      console.log('Upgrading to plan:', planId);
-      
-      // Por ahora solo actualizamos en la base de datos
-      const { error } = await supabase
-        .from('subscriptions')
-        .update({
-          plan_type: planId,
-          status: 'active',
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
-
-      if (!error) {
-        setCurrentPlan(planId);
-        alert('¡Plan actualizado exitosamente!');
-      }
-    } catch (error) {
-      console.error('Error upgrading plan:', error);
-      alert('Error al actualizar el plan');
-    } finally {
-      setLoading(false);
-    }
+  const handleSuccess = () => {
+    // Recargar el plan actual después de un pago exitoso
+    fetchCurrentPlan();
+    alert('¡Suscripción procesada! Tu plan se actualizará una vez confirmado el pago.');
   };
 
   return (
@@ -196,6 +172,11 @@ const SubscriptionPlans = () => {
         <p className="text-xl text-gray-600">
           Elige el plan perfecto para tus necesidades inmobiliarias
         </p>
+        <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+          <p className="text-sm text-blue-800">
+            💳 <strong>Integración con Mercado Pago:</strong> Pagos seguros con tarjetas de crédito, débito y más opciones
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -240,18 +221,17 @@ const SubscriptionPlans = () => {
                   <Button disabled className="w-full bg-green-500">
                     Plan Actual
                   </Button>
-                ) : (
-                  <Button 
-                    onClick={() => handleUpgrade(plan.id)}
-                    disabled={loading}
-                    className={`w-full ${
-                      plan.highlighted 
-                        ? 'bg-blue-600 hover:bg-blue-700' 
-                        : 'bg-gray-800 hover:bg-gray-900'
-                    }`}
-                  >
-                    {loading ? 'Procesando...' : 'Suscribirse'}
+                ) : plan.price === 0 ? (
+                  <Button disabled className="w-full">
+                    Plan Gratuito
                   </Button>
+                ) : (
+                  <MercadoPagoButton
+                    planId={plan.id}
+                    planName={plan.name}
+                    price={plan.price}
+                    onSuccess={handleSuccess}
+                  />
                 )}
               </div>
             </CardContent>
@@ -319,6 +299,28 @@ const SubscriptionPlans = () => {
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Mercado Pago Info */}
+      <div className="mt-12 bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
+        <h3 className="text-xl font-bold text-center mb-4">¿Por qué elegir nuestros planes?</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+          <div>
+            <div className="text-2xl mb-2">🏡</div>
+            <h4 className="font-semibold">Más Visibilidad</h4>
+            <p className="text-sm text-gray-600">Marcos premium y posicionamiento destacado</p>
+          </div>
+          <div>
+            <div className="text-2xl mb-2">📱</div>
+            <h4 className="font-semibold">Más Contacto</h4>
+            <p className="text-sm text-gray-600">Muestra tu teléfono y redes sociales</p>
+          </div>
+          <div>
+            <div className="text-2xl mb-2">🌟</div>
+            <h4 className="font-semibold">Perfil VIP</h4>
+            <p className="text-sm text-gray-600">Página exclusiva para usuarios premium</p>
+          </div>
         </div>
       </div>
     </div>

@@ -17,5 +17,12 @@
   <body>
    
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const badge = document.getElementById('lovable-badge');
+    if (badge) badge.remove();
+  });
+</script>
+
   </body>
 </html>

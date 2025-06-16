@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface MercadoPagoButtonProps {
   planId: string;
@@ -17,6 +18,7 @@ const MercadoPagoButton: React.FC<MercadoPagoButtonProps> = ({
   onSuccess 
 }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
   // Access Token de Mercado Pago (TEST)
@@ -24,7 +26,11 @@ const MercadoPagoButton: React.FC<MercadoPagoButtonProps> = ({
 
   const createMercadoPagoPreference = async () => {
     if (!user) {
-      alert('Debes iniciar sesión para suscribirte');
+      toast({
+        title: "Error",
+        description: "Debes iniciar sesión para suscribirte",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -53,12 +59,13 @@ const MercadoPagoButton: React.FC<MercadoPagoButtonProps> = ({
         },
         auto_return: 'approved',
         external_reference: `${user.id}-${planId}-${Date.now()}`,
-        notification_url: `${window.location.origin}/api/mercadopago/webhook`,
         statement_descriptor: 'InmoPlus',
         expires: true,
         expiration_date_from: new Date().toISOString(),
         expiration_date_to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 horas
       };
+
+      console.log('Creating Mercado Pago preference:', preference);
 
       const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
@@ -70,21 +77,37 @@ const MercadoPagoButton: React.FC<MercadoPagoButtonProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error('Error al crear la preferencia de pago');
+        const errorData = await response.text();
+        console.error('Mercado Pago API Error:', errorData);
+        throw new Error(`Error al crear la preferencia de pago: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('Mercado Pago response:', data);
       
       // Abrir Mercado Pago en nueva pestaña
-      window.open(data.init_point, '_blank');
-      
-      if (onSuccess) {
-        onSuccess();
+      if (data.init_point) {
+        window.open(data.init_point, '_blank');
+        
+        toast({
+          title: "Redirigiendo...",
+          description: "Se abrirá una nueva ventana para completar el pago",
+        });
+
+        if (onSuccess) {
+          onSuccess();
+        }
+      } else {
+        throw new Error('No se recibió la URL de pago');
       }
       
     } catch (error) {
       console.error('Error al procesar el pago:', error);
-      alert('Error al procesar el pago. Inténtalo de nuevo.');
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al procesar el pago. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

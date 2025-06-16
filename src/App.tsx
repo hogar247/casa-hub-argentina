@@ -6,8 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Layout from "./components/Layout";
-import Index from "./pages/Index";
-import HomePage from "./pages/Home";
 import Properties from "./pages/Properties";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -27,7 +25,7 @@ const App = () => (
         <AuthProvider>
           <Layout>
             <Routes>
-              <Route path="/" element={<HomePage />} />
+              <Route path="/" element={<Properties />} />
               <Route path="/properties" element={<Properties />} />
               <Route path="/properties/new" element={<PropertyForm />} />
               <Route path="/properties/:id/edit" element={<PropertyForm />} />

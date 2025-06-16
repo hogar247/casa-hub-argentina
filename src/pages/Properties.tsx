@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, MapPin, Building, Heart, Share2, Eye, Bed, Bath, Car } from 'lucide-react';
+import { Search, MapPin, Building, Heart, Share2, Eye, Bed, Bath, Car, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface Property {
   id: string;
@@ -36,11 +38,14 @@ interface Property {
     company_name: string;
     phone: string;
     user_type: string;
+    youtube_url?: string;
+    instagram_url?: string;
+    facebook_url?: string;
   };
-  subscriptions: {
+  subscriptions: Array<{
     plan_type: string;
     status: string;
-  }[];
+  }>;
 }
 
 const MEXICO_STATES_MUNICIPALITIES = {
@@ -62,10 +67,13 @@ const MEXICO_STATES_MUNICIPALITIES = {
 };
 
 const PropertiesPage = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [filters, setFilters] = useState({
     operationType: '',
     minPrice: '',
@@ -96,7 +104,64 @@ const PropertiesPage = () => {
 
   useEffect(() => {
     fetchProperties();
-  }, [searchQuery, filters]);
+    if (user) {
+      fetchFavorites();
+    }
+  }, [searchQuery, filters, user]);
+
+  const fetchFavorites = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('favorites')
+      .select('property_id')
+      .eq('user_id', user.id);
+    
+    if (data) {
+      setFavorites(data.map(fav => fav.property_id));
+    }
+  };
+
+  const toggleFavorite = async (propertyId: string) => {
+    if (!user) {
+      toast({
+        title: "Inicia sesión",
+        description: "Necesitas iniciar sesión para guardar favoritos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const isFavorite = favorites.includes(propertyId);
+    
+    if (isFavorite) {
+      const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('property_id', propertyId);
+      
+      if (!error) {
+        setFavorites(prev => prev.filter(id => id !== propertyId));
+        toast({
+          title: "Eliminado de favoritos",
+          description: "La propiedad ha sido eliminada de tus favoritos",
+        });
+      }
+    } else {
+      const { error } = await supabase
+        .from('favorites')
+        .insert([{ user_id: user.id, property_id: propertyId }]);
+      
+      if (!error) {
+        setFavorites(prev => [...prev, propertyId]);
+        toast({
+          title: "Agregado a favoritos",
+          description: "La propiedad ha sido agregada a tus favoritos",
+        });
+      }
+    }
+  };
 
   const fetchProperties = async () => {
     setLoading(true);
@@ -106,10 +171,11 @@ const PropertiesPage = () => {
       .select(`
         *,
         property_images (image_url, is_main),
-        profiles (first_name, last_name, company_name, phone, user_type),
-        subscriptions (plan_type, status)
+        profiles (first_name, last_name, company_name, phone, user_type, youtube_url, instagram_url, facebook_url),
+        subscriptions!inner (plan_type, status)
       `)
       .eq('status', 'published')
+      .eq('subscriptions.status', 'active')
       .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false });
 
@@ -150,7 +216,7 @@ const PropertiesPage = () => {
 
     if (data && !error) {
       // Apply feature filters
-      let filteredData = data.filter(property => {
+      let filteredData = data.filter((property: any) => {
         const features = Array.isArray(property.features) ? property.features : 
                         (typeof property.features === 'string' ? JSON.parse(property.features || '[]') : []);
         const amenities = Array.isArray(property.amenities) ? property.amenities : 
@@ -170,7 +236,7 @@ const PropertiesPage = () => {
         return true;
       });
 
-      setProperties(filteredData as Property[]);
+      setProperties(filteredData);
     }
     
     setLoading(false);
@@ -281,7 +347,7 @@ const PropertiesPage = () => {
               <SelectValue placeholder="Tipo de operación" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="sale">Venta</SelectItem>
               <SelectItem value="rent">Alquiler</SelectItem>
             </SelectContent>
@@ -292,7 +358,7 @@ const PropertiesPage = () => {
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos los estados</SelectItem>
+              <SelectItem value="all">Todos los estados</SelectItem>
               {Object.keys(MEXICO_STATES_MUNICIPALITIES).map((state) => (
                 <SelectItem key={state} value={state}>{state}</SelectItem>
               ))}
@@ -304,7 +370,7 @@ const PropertiesPage = () => {
               <SelectValue placeholder="Municipio" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos los municipios</SelectItem>
+              <SelectItem value="all">Todos los municipios</SelectItem>
               {selectedMunicipalities.map((municipality) => (
                 <SelectItem key={municipality} value={municipality}>{municipality}</SelectItem>
               ))}
@@ -467,6 +533,7 @@ const PropertiesPage = () => {
             const activeSub = property.subscriptions?.find(sub => sub.status === 'active');
             const showPhone = activeSub && ['plan_300', 'plan_500', 'plan_1000', 'plan_3000'].includes(activeSub.plan_type);
             const canShare = activeSub && ['plan_1000', 'plan_3000'].includes(activeSub.plan_type);
+            const isFavorite = favorites.includes(property.id);
 
             return (
               <Card 
@@ -490,17 +557,32 @@ const PropertiesPage = () => {
                       <Badge className="bg-yellow-500 text-white">Destacado</Badge>
                     </div>
                   )}
-                  {canShare && (
+                  <div className="absolute bottom-4 right-4 flex gap-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleShare(property);
+                        toggleFavorite(property.id);
                       }}
-                      className="absolute bottom-4 right-4 bg-white/80 hover:bg-white p-2 rounded-full transition-colors"
+                      className={`p-2 rounded-full transition-colors ${
+                        isFavorite 
+                          ? 'bg-red-500 text-white' 
+                          : 'bg-white/80 hover:bg-white text-gray-700'
+                      }`}
                     >
-                      <Share2 className="h-4 w-4" />
+                      <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
                     </button>
-                  )}
+                    {canShare && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShare(property);
+                        }}
+                        className="bg-white/80 hover:bg-white p-2 rounded-full transition-colors"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
                 <CardContent className="p-6">
@@ -551,6 +633,26 @@ const PropertiesPage = () => {
                           <p className="text-xs text-blue-600">
                             📞 {property.profiles.phone}
                           </p>
+                        )}
+                        {/* Social media links for premium users */}
+                        {activeSub && ['plan_1000', 'plan_3000'].includes(activeSub.plan_type) && (
+                          <div className="flex gap-2 mt-2">
+                            {property.profiles?.youtube_url && (
+                              <a href={property.profiles.youtube_url} target="_blank" rel="noopener noreferrer" className="text-red-500">
+                                📺
+                              </a>
+                            )}
+                            {property.profiles?.instagram_url && (
+                              <a href={property.profiles.instagram_url} target="_blank" rel="noopener noreferrer" className="text-pink-500">
+                                📷
+                              </a>
+                            )}
+                            {property.profiles?.facebook_url && (
+                              <a href={property.profiles.facebook_url} target="_blank" rel="noopener noreferrer" className="text-blue-500">
+                                📘
+                              </a>
+                            )}
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center text-xs text-gray-500">

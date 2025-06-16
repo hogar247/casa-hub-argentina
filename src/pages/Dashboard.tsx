@@ -4,8 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Building, Eye, Heart, User } from 'lucide-react';
+import { Plus, Building, Eye, Heart, User, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface UserProperty {
   id: string;
@@ -30,6 +31,7 @@ interface UserStats {
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [properties, setProperties] = useState<UserProperty[]>([]);
   const [stats, setStats] = useState<UserStats>({
     totalProperties: 0,
@@ -80,9 +82,9 @@ const Dashboard = () => {
   };
 
   const formatPrice = (price: number, currency: string) => {
-    return new Intl.NumberFormat('es-AR', {
+    return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: currency === 'ARS' ? 'ARS' : 'USD',
+      currency: currency === 'ARS' ? 'ARS' : currency === 'USD' ? 'USD' : 'MXN',
     }).format(price);
   };
 
@@ -103,6 +105,39 @@ const Dashboard = () => {
       case 'sold': return 'Vendida';
       case 'suspended': return 'Suspendida';
       default: return status;
+    }
+  };
+
+  const handleDeleteProperty = async (propertyId: string) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar esta propiedad?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('properties')
+        .delete()
+        .eq('id', propertyId)
+        .eq('user_id', user?.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "¡Éxito!",
+        description: "Propiedad eliminada correctamente",
+      });
+
+      // Refresh the properties list
+      fetchUserData();
+    } catch (error) {
+      console.error('Error deleting property:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la propiedad",
+        variant: "destructive",
+      });
     }
   };
 
@@ -209,8 +244,7 @@ const Dashboard = () => {
               {properties.map((property) => (
                 <div 
                   key={property.id} 
-                  className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/properties/${property.id}`)}
+                  className="border rounded-lg p-4 hover:shadow-md transition-shadow"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -229,6 +263,27 @@ const Dashboard = () => {
                       <p className="text-sm text-gray-600 mt-2">
                         {property.views_count} vistas
                       </p>
+                      
+                      {/* Action buttons */}
+                      <div className="flex gap-2 mt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/properties/${property.id}/edit`)}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteProperty(property.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Eliminar
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

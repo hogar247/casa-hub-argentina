@@ -1,737 +1,579 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MapPin, Filter, Share2, User, Building, Star, Heart, PawPrint, Car, Wifi } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Search, MapPin, DollarSign, Bed, Bath, Car, Wifi, Dog, Shield, Building, Waves, Dumbbell } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-
-// Estados y municipios de México
-const mexicoStatesAndMunicipalities = {
-  "Aguascalientes": ["Aguascalientes","Asientos","Calvillo","Cosio","El Llano","Jesus Maria","Pabellon de Arteaga","Rincon de Romos","San Francisco de los Romo","San Jose de Gracia","Tepezala"],
-  "Baja California": ["Ensenada","Mexicali","Playas de Rosarito","Tecate","Tijuana"],
-  "Baja California Sur": ["Comondu","La Paz","Loreto","Los Cabos","Mulege"],
-  "Campeche": ["Calakmul","Calkini","Campeche","Candelaria","Carmen","Champoton","Escarcega","Hecelchakan","Hopelchen","Palizada","Tenabo"],
-  "Coahuila": ["Abasolo","Acuna","Allende","Arteaga","Candela","Castanos","Cuatro Cienegas","Escobedo","Francisco I. Madero","Frontera","General Cepeda","Guerrero","Hidalgo","Jimenez","Juarez","Lamadrid","Matamoros","Monclova","Morelos","Muzquiz","Nadadores","Nava","Ocampo","Parras","Piedras Negras","Progreso","Ramos Arizpe","Sabinas","Sacramento","Saltillo","San Buenaventura","San Juan de Sabinas","San Pedro","Sierra Mojada","Torreon","Viesca","Villa Union","Zaragoza"],
-  "Colima": ["Armeria","Colima","Comala","Coquimatlan","Cuauhtemoc","Ixtlahuacan","Manzanillo","Minatitlan","Tecoman","Villa de Alvarez"],
-  "Chiapas": ["Acacoyagua","Acala","Acapetahua","Aldama","Altamirano","Amatenango de la Frontera","Amatenango del Valle","Amatan","Angel Albino Corzo","Arriaga","Bejucal de Ocampo","Bella Vista","Benemerito de las Americas","Berriozabal","Bochil","Cacahoatan","Capitan Luis Angel Vidal","Catazaja","Chalchihuitan","Chamula","Chanal","Chapultenango","Chenalho","Chiapa de Corzo","Chiapilla","Chicoasen","Chicomuselo","Chilon","Cintalapa","Coapilla","Comitan de Dominguez","Copainala","El Bosque","El Parral","El Porvenir","Emiliano Zapata","Escuintla","Francisco Leon","Frontera Comalapa","Frontera Hidalgo","Huehuetan","Huitiupan","Huixtla","Huixtan","Ixhuatan","Ixtacomitan","Ixtapa","Ixtapangajoya","Jiquipilas","Jitotol","Juarez","La Concordia","La Grandeza","La Independencia","La Libertad","La Trinitaria","Larrainzar","Las Margaritas","Las Rosas","Mapastepec","Maravilla Tenejapa","Marques de Comillas","Mazapa de Madero","Mazatan","Metapa","Mezcalapa","Mitontic","Montecristo de Guerrero","Motozintla","Nicolas Ruiz","Ocosingo","Ocotepec","Ocozocoautla de Espinosa","Ostuacan","Osumacinta","Oxchuc","Palenque","Pantelho","Pantepec","Pichucalco","Pijijiapan","Pueblo Nuevo Solistahuacan","Rayon","Reforma","Rincon Chamula San Pedro","Sabanilla","Salto de Agua","San Andres Duraznal","San Cristobal de las Casas","San Fernando","San Juan Cancuc","San Lucas","Santiago el Pinar","Siltepec","Simojovel","Sitala","Socoltenango","Solosuchiapa","Soyalo","Suchiapa","Suchiate","Sunuapa","Tapachula","Tapalapa","Tapilula","Tecpatan","Tenejapa","Teopisca","Tila","Tonala","Totolapa","Tumbala","Tuxtla Chico","Tuxtla Gutierrez","Tuzantan","Tzimol","Union Juarez","Venustiano Carranza","Villa Comaltitlan","Villa Corzo","Villaflores","Yajalon","Zinacantan"],
-  "Chihuahua": ["Ahumada","Aldama","Allende","Aquiles Serdan","Ascension","Bachiniva","Balleza","Batopilas de Manuel Gomez Morin","Bocoyna","Buenaventura","Camargo","Carichi","Casas Grandes","Chihuahua","Chinipas","Coronado","Coyame del Sotol","Cuauhtemoc","Cusihuiriachi","Delicias","Dr. Belisario Dominguez","El Tule","Galeana","Gran Morelos","Guachochi","Guadalupe y Calvo","Guadalupe","Guazapares","Guerrero","Gomez Farias","Hidalgo del Parral","Huejotitan","Ignacio Zaragoza","Janos","Jimenez","Julimes","Juarez","La Cruz","Lopez","Madera","Maguarichi","Manuel Benavides","Matachi","Matamoros","Meoqui","Morelos","Moris","Namiquipa","Nonoava","Nuevo Casas Grandes","Ocampo","Ojinaga","Praxedis G. Guerrero","Riva Palacio","Rosales","Rosario","San Francisco de Borja","San Francisco de Conchos","San Francisco del Oro","Santa Barbara","Santa Isabel","Satevo","Saucillo","Temosachic","Urique","Uruachi","Valle de Zaragoza"],
-  "Ciudad de Mexico": ["Alvaro Obregon","Azcapotzalco","Benito Juarez","Coyoacan","Cuajimalpa de Morelos","Cuauhtemoc","Gustavo A. Madero","Iztacalco","Iztapalapa","La Magdalena Contreras","Miguel Hidalgo","Milpa Alta","Tlalpan","Tlahuac","Venustiano Carranza","Xochimilco"],
-  "Durango": ["Canatlan","Canelas","Coneto de Comonfort","Cuencame","Durango","El Oro","General Simon Bolivar","Gomez Palacio","Guadalupe Victoria","Guanacevi","Hidalgo","Inde","Lerdo","Mapimi","Mezquital","Nazas","Nombre de Dios","Nuevo Ideal","Ocampo","Otaez","Panuco de Coronado","Penon Blanco","Poanas","Pueblo Nuevo","Rodeo","San Bernardo","San Dimas","San Juan de Guadalupe","San Juan del Rio","San Luis del Cordero","San Pedro del Gallo","Santa Clara","Santiago Papasquiaro","Suchil","Tamazula","Tepehuanes","Tlahualilo","Topia","Vicente Guerrero"],
-  "Guanajuato": ["Abasolo","Acambaro","Apaseo el Alto","Apaseo el Grande","Atarjea","Celaya","Comonfort","Coroneo","Cortazar","Cueramaro","Doctor Mora","Dolores Hidalgo Cuna de la Independencia Nacional","Guanajuato","Huanimaro","Irapuato","Jaral del Progreso","Jerecuaro","Leon","Manuel Doblado","Moroleon","Ocampo","Penjamo","Pueblo Nuevo","Purisima del Rincon","Romita","Salamanca","Salvatierra","San Diego de la Union","San Felipe","San Francisco del Rincon","San Jose Iturbide","San Luis de la Paz","San Miguel de Allende","Santa Catarina","Santa Cruz de Juventino Rosas","Santiago Maravatio","Silao de la Victoria","Tarandacuao","Tarimoro","Tierra Blanca","Uriangato","Valle de Santiago","Victoria","Villagran","Xichu","Yuriria"],
-  "Guerrero": ["Acapulco de Juarez","Acatepec","Ahuacuotzingo","Ajuchitlan del Progreso","Alcozauca de Guerrero","Alpoyeca","Apaxtla","Arcelia","Atenango del Rio","Atlamajalcingo del Monte","Atlixtac","Atoyac de Alvarez","Ayutla de los Libres","Azoyu","Benito Juarez","Buenavista de Cuellar","Chilapa de Alvarez","Chilpancingo de los Bravo","Coahuayutla de Jose Maria Izazaga","Cochoapa el Grande","Cocula","Copala","Copalillo","Copanatoyac","Coyuca de Benitez","Coyuca de Catalan","Cuajinicuilapa","Cualac","Cuautepec","Cuetzala del Progreso","Cutzamala de Pinzon","Eduardo Neri","Florencio Villarreal","General Canuto A. Neri","General Heliodoro Castillo","Huamuxtitlan","Huitzuco de los Figueroa","Iguala de la Independencia","Igualapa","Iliatenco","Ixcateopan de Cuauhtemoc","Jose Joaquin de Herrera","Juan R. Escudero","Juchitan","La Union de Isidoro Montes de Oca","Leonardo Bravo","Malinaltepec","Marquelia","Martir de Cuilapan","Metlatonoc","Mochitlan","Olinala","Ometepec","Pedro Ascencio Alquisiras","Petatlan","Pilcaya","Pungarabato","Quechultenango","San Luis Acatlan","San Marcos","San Miguel Totolapan","Taxco de Alarcon","Tecoanapa","Tecpan de Galeana","Teloloapan","Tepecoacuilco de Trujano","Tetipac","Tixtla de Guerrero","Tlacoachistlahuaca","Tlacoapa","Tlalchapa","Tlalixtaquilla de Maldonado","Tlapa de Comonfort","Tlapehuala","Xalpatlahuac","Xochihuehuetlan","Xochistlahuaca","Zapotitlan Tablas","Zihuatanejo de Azueta","Zirandaro","Zitlala"],
-  "Hidalgo": ["Acatlan","Acaxochitlan","Actopan","Agua Blanca de Iturbide","Ajacuba","Alfajayucan","Almoloya","Apan","Atitalaquia","Atlapexco","Atotonilco de Tula","Atotonilco el Grande","Calnali","Cardonal","Chapantongo","Chapulhuacan","Chilcuautla","Cuautepec de Hinojosa","El Arenal","Eloxochitlan","Emiliano Zapata","Epazoyucan","Francisco I. Madero","Huasca de Ocampo","Huautla","Huazalingo","Huehuetla","Huejutla de Reyes","Huichapan","Ixmiquilpan","Jacala de Ledezma","Jaltocan","Juarez Hidalgo","La Mision","Lolotla","Metepec","Metztitlan","Mineral de la Reforma","Mineral del Chico","Mineral del Monte","Mixquiahuala de Juarez","Molango de Escamilla","Nicolas Flores","Nopala de Villagran","Omitlan de Juarez","Pachuca de Soto","Pacula","Pisaflores","Progreso de Obregon","San Agustin Metzquititlan","San Agustin Tlaxiaca","San Bartolo Tutotepec","San Felipe Orizatlan","San Salvador","Santiago Tulantepec de Lugo Guerrero","Santiago de Anaya","Singuilucan","Tasquillo","Tecozautla","Tenango de Doria","Tepeapulco","Tepehuacan de Guerrero","Tepeji del Rio de Ocampo","Tepetitlan","Tetepango","Tezontepec de Aldama","Tianguistengo","Tizayuca","Tlahuelilpan","Tlahuiltepa","Tlanalapa","Tlanchinol","Tlaxcoapan","Tolcayuca","Tula de Allende","Tulancingo de Bravo","Villa de Tezontepec","Xochiatipan","Xochicoatlan","Yahualica","Zacualtipan de Angeles","Zapotlan de Juarez","Zempoala","Zimapan"],
-  "Jalisco": ["Acatic","Acatlan de Juarez","Ahualulco de Mercado","Amacueca","Amatitan","Ameca","Arandas","Atemajac de Brizuela","Atengo","Atenguillo","Atotonilco el Alto","Atoyac","Autlan de Navarro","Ayotlan","Ayutla","Bolanos","Cabo Corrientes","Canadas de Obregon","Casimiro Castillo","Chapala","Chimaltitan","Chiquilistlan","Cihuatlan","Cocula","Colotlan","Concepcion de Buenos Aires","Cuautitlan de Garcia Barragan","Cuautla","Cuquio","Degollado","Ejutla","El Arenal","El Grullo","El Limon","El Salto","Encarnacion de Diaz","Etzatlan","Gomez Farias","Guachinango","Guadalajara","Hostotipaquillo","Huejucar","Huejuquilla el Alto","Ixtlahuacan de los Membrillos","Ixtlahuacan del Rio","Jalostotitlan","Jamay","Jesus Maria","Jilotlan de los Dolores","Jocotepec","Juanacatlan","Juchitlan","La Barca","La Huerta","La Manzanilla de la Paz","Lagos de Moreno","Magdalena","Mascota","Mazamitla","Mexticacan","Mezquitic","Mixtlan","Ocotlan","Ojuelos de Jalisco","Pihuamo","Poncitlan","Puerto Vallarta","Quitupan","San Cristobal de la Barranca","San Diego de Alejandria","San Gabriel","San Ignacio Cerro Gordo","San Juan de los Lagos","San Juanito de Escobedo","San Julian","San Marcos","San Martin Hidalgo","San Martin de Bolanos","San Miguel el Alto","San Pedro Tlaquepaque","San Sebastian del Oeste","Santa Maria de los Angeles","Santa Maria del Oro","Sayula","Tala","Talpa de Allende","Tamazula de Gordiano","Tapalpa","Tecalitlan","Techaluta de Montenegro","Tecolotlan","Tenamaxtlan","Teocaltiche","Teocuitatlan de Corona","Tepatitlan de Morelos","Tequila","Teuchitlan","Tizapan el Alto","Tlajomulco de Zuniga","Toliman","Tomatlan","Tonala","Tonaya","Tonila","Totatiche","Tototlan","Tuxcacuesco","Tuxcueca","Tuxpan","Union de San Antonio","Union de Tula","Valle de Guadalupe","Valle de Juarez","Villa Corona","Villa Guerrero","Villa Hidalgo","Villa Purificacion","Yahualica de Gonzalez Gallo","Zacoalco de Torres","Zapopan","Zapotiltic","Zapotitlan de Vadillo","Zapotlan del Rey","Zapotlan el Grande","Zapotlanejo"],
-  "Estado de Mexico": ["Acambay de Ruiz Castaneda","Acolman","Aculco","Almoloya de Alquisiras","Almoloya de Juarez","Almoloya del Rio","Amanalco","Amatepec","Amecameca","Apaxco","Atenco","Atizapan de Zaragoza","Atizapan","Atlacomulco","Atlautla","Axapusco","Ayapango","Calimaya","Capulhuac","Chalco","Chapa de Mota","Chapultepec","Chiautla","Chicoloapan","Chiconcuac","Chimalhuacan","Coacalco de Berriozabal","Coatepec Harinas","Cocotitlan","Coyotepec","Cuautitlan Izcalli","Cuautitlan","Donato Guerra","Ecatepec de Morelos","Ecatzingo","El Oro","Huehuetoca","Hueypoxtla","Huixquilucan","Isidro Fabela","Ixtapaluca","Ixtapan de la Sal","Ixtapan del Oro","Ixtlahuaca","Jaltenco","Jilotepec","Jilotzingo","Jiquipilco","Jocotitlan","Joquicingo","Juchitepec","La Paz","Lerma","Luvianos","Malinalco","Melchor Ocampo","Metepec","Mexicaltzingo","Morelos","Naucalpan de Juarez","Nextlalpan","Nezahualcoyotl","Nicolas Romero","Nopaltepec","Ocoyoacac","Ocuilan","Otumba","Otzoloapan","Otzolotepec","Ozumba","Papalotla","Polotitlan","Rayon","San Antonio la Isla","San Felipe del Progreso","San Jose del Rincon","San Martin de las Piramides","San Mateo Atenco","San Simon de Guerrero","Santo Tomas","Soyaniquilpan de Juarez","Sultepec","Tecamac","Tejupilco","Temamatla","Temascalapa","Temascalcingo","Temascaltepec","Temoaya","Tenancingo","Tenango del Aire","Tenango del Valle","Teoloyucan","Teotihuacan","Tepetlaoxtoc","Tepetlixpa","Tepotzotlan","Tequixquiac","Texcaltitlan","Texcalyacac","Texcoco","Tezoyuca","Tianguistenco","Timilpan","Tlalmanalco","Tlalnepantla de Baz","Tlatlaya","Toluca","Tonanitla","Tonatico","Tultepec","Tultitlan","Valle de Bravo","Valle de Chalco Solidaridad","Villa Guerrero","Villa Victoria","Villa de Allende","Villa del Carbon","Xalatlaco","Xonacatlan","Zacazonapan","Zacualpan","Zinacantepec","Zumpahuacan","Zumpango"],
-  "Michoacan": ["Acuitzio","Aguililla","Alvaro Obregon","Angamacutiro","Angangueo","Apatzingan","Aporo","Aquila","Ario","Arteaga","Brisenas","Buenavista","Caracuaro","Charapan","Charo","Chavinda","Cheran","Chilchota","Chinicuila","Chucandiro","Churintzio","Churumuco","Coahuayana","Coalcoman de Vazquez Pallares","Coeneo","Cojumatlan de Regules","Contepec","Copandaro","Cotija","Cuitzeo","Ecuandureo","Epitacio Huerta","Erongaricuaro","Gabriel Zamora","Hidalgo","Huandacareo","Huaniqueo","Huetamo","Huiramba","Indaparapeo","Irimbo","Ixtlan","Jacona","Jimenez","Jiquilpan","Jose Sixto Verduzco","Juarez","Jungapeo","La Huacana","La Piedad","Lagunillas","Lazaro Cardenas","Los Reyes","Madero","Maravatio","Marcos Castellanos","Morelia","Morelos","Mugica","Nahuatzen","Nocupetaro","Nuevo Parangaricutiro","Nuevo Urecho","Numaran","Ocampo","Pajacuaran","Panindicuaro","Paracho","Paracuaro","Patzcuaro","Penjamillo","Periban","Purepero","Puruandiro","Querendaro","Quiroga","Sahuayo","Salvador Escalante","San Lucas","Santa Ana Maya","Senguio","Susupuato","Tacambaro","Tancitaro","Tangamandapio","Tangancicuaro","Tanhuato","Taretan","Tarimbaro","Tepalcatepec","Tingambato","Tinguindin","Tiquicheo de Nicolas Romero","Tlalpujahua","Tlazazalca","Tocumbo","Tumbiscatio","Turicato","Tuxpan","Tuzantla","Tzintzuntzan","Tzitzio","Uruapan","Venustiano Carranza","Villamar","Vista Hermosa","Yurecuaro","Zacapu","Zamora","Zinaparo","Zinapecuaro","Ziracuaretiro","Zitacuaro"],
-  "Morelos": ["Amacuzac","Atlatlahucan","Axochiapan","Ayala","Coatlan del Rio","Cuautla","Cuernavaca","Emiliano Zapata","Huitzilac","Jantetelco","Jiutepec","Jojutla","Jonacatepec de Leandro Valle","Mazatepec","Miacatlan","Ocuituco","Puente de Ixtla","Temixco","Temoac","Tepalcingo","Tepoztlan","Tetecala","Tetela del Volcan","Tlalnepantla","Tlaltizapan de Zapata","Tlaquiltenango","Tlayacapan","Totolapan","Xochitepec","Yautepec","Yecapixtla","Zacatepec","Zacualpan de Amilpas"],
-  "Nayarit": ["Acaponeta","Ahuacatlan","Amatlan de Canas","Bahia de Banderas","Compostela","Del Nayar","Huajicori","Ixtlan del Rio","Jala","La Yesca","Rosamorada","Ruiz","San Blas","San Pedro Lagunillas","Santa Maria del Oro","Santiago Ixcuintla","Tecuala","Tepic","Tuxpan","Xalisco"],
-  "Nuevo Leon": ["Abasolo","Agualeguas","Allende","Anahuac","Apodaca","Aramberri","Bustamante","Cadereyta Jimenez","Cerralvo","China","Cienega de Flores","Doctor Arroyo","Doctor Coss","Doctor Gonzalez","El Carmen","Galeana","Garcia","General Bravo","General Escobedo","General Teran","General Trevino","General Zaragoza","General Zuazua","Guadalupe","Hidalgo","Higueras","Hualahuises","Iturbide","Juarez","Lampazos de Naranjo","Linares","Los Aldamas","Los Herreras","Los Ramones","Marin","Melchor Ocampo","Mier y Noriega","Mina","Montemorelos","Monterrey","Paras","Pesqueria","Rayones","Sabinas Hidalgo","Salinas Victoria","San Nicolas de los Garza","San Pedro Garza Garcia","Santa Catarina","Santiago","Vallecillo","Villaldama"],
-  "Oaxaca":["Abejones","Acatlan de Perez Figueroa","Animas Trujano","Asuncion Cacalotepec","Asuncion Cuyotepeji","Asuncion Ixtaltepec","Asuncion Nochixtlan","Asuncion Ocotlan","Asuncion Tlacolulita","Ayoquezco de Aldama","Ayotzintepec","Calihuala","Candelaria Loxicha","Capulalpam de Mendez","Chahuites","Chalcatongo de Hidalgo","Chiquihuitlan de Benito Juarez","Cienega de Zimatlan","Ciudad Ixtepec","Coatecas Altas","Coicoyan de las Flores","Concepcion Buenavista","Concepcion Papalo","Constancia del Rosario","Cosolapa","Cosoltepec","Cuilapam de Guerrero","Cuna de la Independencia de Oaxaca","Cuyamecalco Villa de Zaragoza","El Barrio de la Soledad","El Espinal","Eloxochitlan de Flores Magon","Fresnillo de Trujano","Guadalupe Etla","Guadalupe de Ramirez","Guelatao de Juarez","Guevea de Humboldt","Heroica Ciudad de Ejutla de Crespo","Heroica Ciudad de Huajuapan de Leon","Heroica Ciudad de Juchitan de Zaragoza","Heroica Ciudad de Tlaxiaco","Heroica Villa Tezoatlan de Segura y Luna","Huautepec","Huautla de Jimenez","Ixpantepec Nieves","Ixtlan de Juarez","La Compania","La Pe","La Reforma","La Trinidad Vista Hermosa","Loma Bonita","Magdalena Apasco","Magdalena Jaltepec","Magdalena Mixtepec","Magdalena Ocotlan","Magdalena Penasco","Magdalena Teitipac","Magdalena Tequisistlan","Magdalena Tlacotepec","Magdalena Yodocono de Porfirio Diaz","Magdalena Zahuatlan","Mariscala de Juarez","Martires de Tacubaya","Matias Romero Avendano","Mazatlan Villa de Flores","Mesones Hidalgo","Miahuatlan de Porfirio Diaz","Mixistlan de la Reforma","Monjas","Natividad","Nazareno Etla","Nejapa de Madero","Nuevo Zoquiapam","Oaxaca de Juarez","Ocotlan de Morelos","Pinotepa de Don Luis","Pluma Hidalgo","Putla Villa de Guerrero","Reforma de Pineda","Reyes Etla","Rojas de Cuauhtemoc","Salina Cruz","San Agustin Amatengo","San Agustin Atenango","San Agustin Chayuco","San Agustin Etla","San Agustin Loxicha","San Agustin Tlacotepec","San Agustin Yatareni","San Agustin de las Juntas","San Andres Cabecera Nueva","San Andres Dinicuiti","San Andres Huaxpaltepec","San Andres Huayapam","San Andres Ixtlahuaca","San Andres Lagunas","San Andres Nuxino","San Andres Paxtlan","San Andres Sinaxtla","San Andres Solaga","San Andres Teotilalpam","San Andres Tepetlapa","San Andres Yaa","San Andres Zabache","San Andres Zautla","San Antonino Castillo Velasco","San Antonino Monte Verde","San Antonino el Alto","San Antonio Acutla","San Antonio Huitepec","San Antonio Nanahuatipam","San Antonio Sinicahua","San Antonio Tepetlapa","San Antonio de la Cal","San Baltazar Chichicapam","San Baltazar Loxicha","San Baltazar Yatzachi el Bajo","San Bartolo Coyotepec","San Bartolo Soyaltepec","San Bartolo Yautepec","San Bartolome Ayautla","San Bartolome Loxicha","San Bartolome Quialana","San Bartolome Yucuane","San Bartolome Zoogocho","San Bernardo Mixtepec","San Blas Atempa","San Carlos Yautepec","San Cristobal Amatlan","San Cristobal Amoltepec","San Cristobal Lachirioag","San Cristobal Suchixtlahuaca","San Dionisio Ocotepec","San Dionisio Ocotlan","San Dionisio del Mar","San Esteban Atatlahuca","San Felipe Jalapa de Diaz","San Felipe Tejalapam","San Felipe Usila","San Francisco Cahuacua","San Francisco Cajonos","San Francisco Chapulapa","San Francisco Chindua","San Francisco Huehuetlan","San Francisco Ixhuatan","San Francisco Jaltepetongo","San Francisco Lachigolo","San Francisco Logueche","San Francisco Nuxano","San Francisco Ozolotepec","San Francisco Sola","San Francisco Telixtlahuaca","San Francisco Teopan","San Francisco Tlapancingo","San Francisco del Mar","San Gabriel Mixtepec","San Ildefonso Amatlan","San Ildefonso Sola","San Ildefonso Villa Alta","San Jacinto Amilpas","San Jacinto Tlacotepec","San Jeronimo Coatlan","San Jeronimo Silacayoapilla","San Jeronimo Sosola","San Jeronimo Taviche","San Jeronimo Tecoatl","San Jeronimo Tlacochahuaya","San Jorge Nuchita","San Jose Ayuquila","San Jose Chiltepec","San Jose Estancia Grande","San Jose Independencia","San Jose Lachiguiri","San Jose Tenango","San Jose del Penasco","San Jose del Progreso","San Juan Achiutla","San Juan Atepec","San Juan Bautista Atatlahuca","San Juan Bautista Coixtlahuaca","San Juan Bautista Cuicatlan","San Juan Bautista Guelache","San Juan Bautista Jayacatlan","San Juan Bautista Lo de Soto","San Juan Bautista Suchitepec","San Juan Bautista Tlachichilco","San Juan Bautista Tlacoatzintepec","San Juan Bautista Tuxtepec","San Juan Bautista Valle Nacional","San Juan Cacahuatepec","San Juan Chicomezuchil","San Juan Chilateca","San Juan Cieneguilla","San Juan Coatzospam","San Juan Colorado","San Juan Comaltepec","San Juan Cotzocon","San Juan Diuxi","San Juan Evangelista Analco","San Juan Guelavia","San Juan Guichicovi","San Juan Ihualtepec","San Juan Juquila Mixes","San Juan Juquila Vijanos","San Juan Lachao","San Juan Lachigalla","San Juan Lajarcia","San Juan Lalana","San Juan Mazatlan","San Juan Mixtepec","San Juan Mixtepec","San Juan Numi","San Juan Ozolotepec","San Juan Petlapa","San Juan Quiahije","San Juan Quiotepec","San Juan Sayultepec","San Juan Tabaa","San Juan Tamazola","San Juan Teita","San Juan Teitipac","San Juan Tepeuxila","San Juan Teposcolula","San Juan Yaee","San Juan Yatzona","San Juan Yucuita","San Juan de los Cues","San Juan del Estado","San Juan del Rio","San Lorenzo Albarradas","San Lorenzo Cacaotepec","San Lorenzo Cuaunecuiltitla","San Lorenzo Texmelucan","San Lorenzo Victoria","San Lorenzo","San Lucas Camotlan","San Lucas Ojitlan","San Lucas Quiavini","San Lucas Zoquiapam","San Luis Amatlan","San Marcial Ozolotepec","San Marcos Arteaga","San Martin Huamelulpam","San Martin Itunyoso","San Martin Lachila","San Martin Peras","San Martin Tilcajete","San Martin Toxpalan","San Martin Zacatepec","San Martin de los Cansecos","San Mateo Cajonos","San Mateo Etlatongo","San Mateo Nejapam","San Mateo Penasco","San Mateo Pinas","San Mateo Rio Hondo","San Mateo Sindihui","San Mateo Tlapiltepec","San Mateo Yoloxochitlan","San Mateo Yucutindoo","San Mateo del Mar","San Melchor Betaza","San Miguel Achiutla","San Miguel Ahuehuetitlan","San Miguel Aloapam","San Miguel Amatitlan","San Miguel Amatlan","San Miguel Chicahua","San Miguel Chimalapa","San Miguel Coatlan","San Miguel Ejutla","San Miguel Huautla","San Miguel Mixtepec","San Miguel Panixtlahuaca","San Miguel Peras","San Miguel Piedras","San Miguel Quetzaltepec","San Miguel Santa Flor","San Miguel Soyaltepec","San Miguel Suchixtepec","San Miguel Tecomatlan","San Miguel Tenango","San Miguel Tequixtepec","San Miguel Tilquiapam","San Miguel Tlacamama","San Miguel Tlacotepec","San Miguel Tulancingo","San Miguel Yotao","San Miguel del Puerto","San Miguel del Rio","San Miguel el Grande","San Nicolas Hidalgo","San Nicolas","San Pablo Coatlan","San Pablo Cuatro Venados","San Pablo Etla","San Pablo Huitzo","San Pablo Huixtepec","San Pablo Macuiltianguis","San Pablo Tijaltepec","San Pablo Villa de Mitla","San Pablo Yaganiza","San Pedro Amuzgos","San Pedro Apostol","San Pedro Atoyac","San Pedro Cajonos","San Pedro Comitancillo","San Pedro Coxcaltepec Cantaros","San Pedro Huamelula","San Pedro Huilotepec","San Pedro Ixcatlan","San Pedro Ixtlahuaca","San Pedro Jaltepetongo","San Pedro Jicayan","San Pedro Jocotipac","San Pedro Juchatengo","San Pedro Martir Quiechapa","San Pedro Martir Yucuxaco","San Pedro Martir","San Pedro Mixtepec","San Pedro Mixtepec","San Pedro Molinos","San Pedro Nopala","San Pedro Ocopetatillo","San Pedro Ocotepec","San Pedro Pochutla","San Pedro Quiatoni","San Pedro Sochiapam","San Pedro Tapanatepec","San Pedro Taviche","San Pedro Teozacoalco","San Pedro Teutila","San Pedro Tidaa","San Pedro Topiltepec","San Pedro Totolapam","San Pedro Yaneri","San Pedro Yolox","San Pedro Yucunama","San Pedro el Alto","San Pedro y San Pablo Ayutla","San Pedro y San Pablo Teposcolula","San Pedro y San Pablo Tequixtepec","San Raymundo Jalpan","San Sebastian Abasolo","San Sebastian Coatlan","San Sebastian Ixcapa","San Sebastian Nicananduta","San Sebastian Rio Hondo","San Sebastian Tecomaxtlahuaca","San Sebastian Teitipac","San Sebastian Tutla","San Simon Almolongas","San Simon Zahuatlan","San Vicente Coatlan","San Vicente Lachixio","San Vicente Nunu","Santa Ana Ateixtlahuaca","Santa Ana Cuauhtemoc","Santa Ana Tavela","Santa Ana Tlapacoyan","Santa Ana Yareni","Santa Ana Zegache","Santa Ana del Valle","Santa Ana","Santa Catalina Quieri","Santa Catarina Cuixtla","Santa Catarina Ixtepeji","Santa Catarina Juquila","Santa Catarina Lachatao","Santa Catarina Loxicha","Santa Catarina Mechoacan","Santa Catarina Minas","Santa Catarina Quiane","Santa Catarina Quioquitani","Santa Catarina Tayata","Santa Catarina Ticua","Santa Catarina Yosonotu","Santa Catarina Zapoquila","Santa Cruz Acatepec","Santa Cruz Amilpas","Santa Cruz Itundujia","Santa Cruz Mixtepec","Santa Cruz Nundaco","Santa Cruz Papalutla","Santa Cruz Tacache de Mina","Santa Cruz Tacahua","Santa Cruz Tayata","Santa Cruz Xitla","Santa Cruz Xoxocotlan","Santa Cruz Zenzontepec","Santa Cruz de Bravo","Santa Gertrudis","Santa Ines Yatzeche","Santa Ines de Zaragoza","Santa Ines del Monte","Santa Lucia Miahuatlan","Santa Lucia Monteverde","Santa Lucia Ocotlan","Santa Lucia del Camino","Santa Magdalena Jicotlan","Santa Maria Alotepec","Santa Maria Apazco","Santa Maria Atzompa","Santa Maria Camotlan","Santa Maria Chachoapam","Santa Maria Chilchotla","Santa Maria Chimalapa","Santa Maria Colotepec","Santa Maria Cortijo","Santa Maria Coyotepec","Santa Maria Ecatepec","Santa Maria Guelace","Santa Maria Guienagati","Santa Maria Huatulco","Santa Maria Huazolotitlan","Santa Maria Ipalapa","Santa Maria Ixcatlan","Santa Maria Jacatepec","Santa Maria Jalapa del Marques","Santa Maria Jaltianguis","Santa Maria Lachixio","Santa Maria Mixtequilla","Santa Maria Nativitas","Santa Maria Nduayaco","Santa Maria Ozolotepec","Santa Maria Papalo","Santa Maria Penoles","Santa Maria Petapa","Santa Maria Quiegolani","Santa Maria Sola","Santa Maria Tataltepec","Santa Maria Tecomavaca","Santa Maria Temaxcalapa","Santa Maria Temaxcaltepec","Santa Maria Teopoxco","Santa Maria Tepantlali","Santa Maria Texcatitlan","Santa Maria Tlahuitoltepec","Santa Maria Tlalixtac","Santa Maria Tonameca","Santa Maria Totolapilla","Santa Maria Xadani","Santa Maria Yalina","Santa Maria Yavesia","Santa Maria Yolotepec","Santa Maria Yosoyua","Santa Maria Yucuhiti","Santa Maria Zacatepec","Santa Maria Zaniza","Santa Maria Zoquitlan","Santa Maria del Rosario","Santa Maria del Tule","Santa Maria la Asuncion","Santiago Amoltepec","Santiago Apoala","Santiago Apostol","Santiago Astata","Santiago Atitlan","Santiago Ayuquililla","Santiago Cacaloxtepec","Santiago Camotlan","Santiago Chazumba","Santiago Choapam","Santiago Comaltepec","Santiago Huajolotitlan","Santiago Huauclilla","Santiago Ihuitlan Plumas","Santiago Ixcuintepec","Santiago Ixtayutla","Santiago Jamiltepec","Santiago Jocotepec","Santiago Juxtlahuaca","Santiago Lachiguiri","Santiago Lalopa","Santiago Laollaga","Santiago Laxopa","Santiago Llano Grande","Santiago Matatlan","Santiago Miltepec","Santiago Minas","Santiago Nacaltepec","Santiago Nejapilla","Santiago Niltepec","Santiago Nundiche","Santiago Nuyoo","Santiago Pinotepa Nacional","Santiago Suchilquitongo","Santiago Tamazola","Santiago Tapextla","Santiago Tenango","Santiago Tepetlapa","Santiago Tetepec","Santiago Texcalcingo","Santiago Textitlan","Santiago Tilantongo","Santiago Tillo","Santiago Tlazoyaltepec","Santiago Xanica","Santiago Xiacui","Santiago Yaitepec","Santiago Yaveo","Santiago Yolomecatl","Santiago Yosondua","Santiago Yucuyachi","Santiago Zacatepec","Santiago Zoochila","Santiago del Rio","Santo Domingo Albarradas","Santo Domingo Armenta","Santo Domingo Chihuitan","Santo Domingo Ingenio","Santo Domingo Ixcatlan","Santo Domingo Nuxaa","Santo Domingo Ozolotepec","Santo Domingo Petapa","Santo Domingo Roayaga","Santo Domingo Tehuantepec","Santo Domingo Teojomulco","Santo Domingo Tepuxtepec","Santo Domingo Tlatayapam","Santo Domingo Tomaltepec","Santo Domingo Tonala","Santo Domingo Tonaltepec","Santo Domingo Xagacia","Santo Domingo Yanhuitlan","Santo Domingo Yodohino","Santo Domingo Zanatepec","Santo Domingo de Morelos","Santo Tomas Jalieza","Santo Tomas Mazaltepec","Santo Tomas Ocotepec","Santo Tomas Tamazulapan","Santos Reyes Nopala","Santos Reyes Papalo","Santos Reyes Tepejillo","Santos Reyes Yucuna","Silacayoapam","Sitio de Xitlapehua","Soledad Etla","Tamazulapam del Espiritu Santo","Tanetze de Zaragoza","Taniche","Tataltepec de Valdes","Teococuilco de Marcos Perez","Teotitlan de Flores Magon","Teotitlan del Valle","Teotongo","Tepelmeme Villa de Morelos","Tlacolula de Matamoros","Tlacotepec Plumas","Tlalixtac de Cabrera","Totontepec Villa de Morelos","Trinidad Zaachila","Union Hidalgo","Valerio Trujano","Villa Diaz Ordaz","Villa Hidalgo","Villa Sola de Vega","Villa Talea de Castro","Villa Tejupam de la Union","Villa de Chilapa de Diaz","Villa de Etla","Villa de Tamazulapam del Progreso","Villa de Tututepec","Villa de Zaachila","Yaxe","Yogana","Yutanduchi de Guerrero","Zapotitlan Lagunas","Zapotitlan Palmas","Zimatlan de Alvarez"],
-  "Puebla": ["Acajete","Acateno","Acatlan","Acatzingo","Acteopan","Ahuacatlan","Ahuatlan","Ahuazotepec","Ahuehuetitla","Ajalpan","Albino Zertuche","Aljojuca","Altepexi","Amixtlan","Amozoc","Aquixtla","Atempan","Atexcal","Atlequizayan","Atlixco","Atoyatempan","Atzala","Atzitzihuacan","Atzitzintla","Axutla","Ayotoxco de Guerrero","Calpan","Caltepec","Camocuautla","Canada Morelos","Caxhuacan","Chalchicomula de Sesma","Chapulco","Chiautla","Chiautzingo","Chichiquila","Chiconcuautla","Chietla","Chigmecatitlan","Chignahuapan","Chignautla","Chila de la Sal","Chila","Chilchotla","Chinantla","Coatepec","Coatzingo","Cohetzala","Cohuecan","Coronango","Coxcatlan","Coyomeapan","Coyotepec","Cuapiaxtla de Madero","Cuautempan","Cuautinchan","Cuautlancingo","Cuayuca de Andrade","Cuetzalan del Progreso","Cuyoaco","Domingo Arenas","Eloxochitlan","Epatlan","Esperanza","Francisco Z. Mena","General Felipe Angeles","Guadalupe Victoria","Guadalupe","Hermenegildo Galeana","Honey","Huaquechula","Huatlatlauca","Huauchinango","Huehuetla","Huehuetlan el Chico","Huehuetlan el Grande","Huejotzingo","Hueyapan","Hueytamalco","Hueytlalpan","Huitzilan de Serdan","Huitziltepec","Ixcamilpa de Guerrero","Ixcaquixtla","Ixtacamaxtitlan","Ixtepec","Izucar de Matamoros","Jalpan","Jolalpan","Jonotla","Jopala","Juan C. Bonilla","Juan Galindo","Juan N. Mendez","La Magdalena Tlatlauquitepec","Lafragua","Libres","Los Reyes de Juarez","Mazapiltepec de Juarez","Mixtla","Molcaxac","Naupan","Nauzontla","Nealtican","Nicolas Bravo","Nopalucan","Ocotepec","Ocoyucan","Olintla","Oriental","Pahuatlan","Palmar de Bravo","Pantepec","Petlalcingo","Piaxtla","Puebla","Quecholac","Quimixtlan","Rafael Lara Grajales","San Andres Cholula","San Antonio Canada","San Diego la Mesa Tochimiltzingo","San Felipe Teotlalcingo","San Felipe Tepatlan","San Gabriel Chilac","San Gregorio Atzompa","San Jeronimo Tecuanipan","San Jeronimo Xayacatlan","San Jose Chiapa","San Jose Miahuatlan","San Juan Atenco","San Juan Atzompa","San Martin Texmelucan","San Martin Totoltepec","San Matias Tlalancaleca","San Miguel Ixitlan","San Miguel Xoxtla","San Nicolas Buenos Aires","San Nicolas de los Ranchos","San Pablo Anicano","San Pedro Cholula","San Pedro Yeloixtlahuaca","San Salvador Huixcolotla","San Salvador el Seco","San Salvador el Verde","San Sebastian Tlacotepec","Santa Catarina Tlaltempan","Santa Ines Ahuatempan","Santa Isabel Cholula","Santiago Miahuatlan","Santo Tomas Hueyotlipan","Soltepec","Tecali de Herrera","Tecamachalco","Tecomatlan","Tehuacan","Tehuitzingo","Tenampulco","Teopantlan","Teotlalco","Tepanco de Lopez","Tepango de Rodriguez","Tepatlaxco de Hidalgo","Tepeaca","Tepemaxalco","Tepeojuma","Tepetzintla","Tepexco","Tepexi de Rodriguez","Tepeyahualco de Cuauhtemoc","Tepeyahualco","Tetela de Ocampo","Teteles de Avila Castillo","Teziutlan","Tianguismanalco","Tilapa","Tlachichuca","Tlacotepec de Benito Juarez","Tlacuilotepec","Tlahuapan","Tlaltenango","Tlanepantla","Tlaola","Tlapacoya","Tlapanala","Tlatlauquitepec","Tlaxco","Tochimilco","Tochtepec","Totoltepec de Guerrero","Tulcingo","Tuzamapan de Galeana","Tzicatlacoyan","Venustiano Carranza","Vicente Guerrero","Xayacatlan de Bravo","Xicotepec","Xicotlan","Xiutetelco","Xochiapulco","Xochiltepec","Xochitlan Todos Santos","Xochitlan de Vicente Suarez","Yaonahuac","Yehualtepec","Zacapala","Zacapoaxtla","Zacatlan","Zapotitlan de Mendez","Zapotitlan","Zaragoza","Zautla","Zihuateutla","Zinacatepec","Zongozotla","Zoquiapan","Zoquitlan"],
-  "Queretaro": ["Amealco de Bonfil","Arroyo Seco","Cadereyta de Montes","Colon","Corregidora","El Marques","Ezequiel Montes","Huimilpan","Jalpan de Serra","Landa de Matamoros","Pedro Escobedo","Penamiller","Pinal de Amoles","Queretaro","San Joaquin","San Juan del Rio","Tequisquiapan","Toliman"],
-  "Quintana Roo": ["Bacalar","Benito Juarez","Cozumel","Felipe Carrillo Puerto","Isla Mujeres","Jose Maria Morelos","Lazaro Cardenas","Othon P. Blanco","Puerto Morelos","Solidaridad","Tulum"],
-  "San Luis Potosi": ["Ahualulco","Alaquines","Aquismon","Armadillo de los Infante","Axtla de Terrazas","Cardenas","Catorce","Cedral","Cerritos","Cerro de San Pedro","Charcas","Ciudad Fernandez","Ciudad Valles","Ciudad del Maiz","Coxcatlan","Ebano","El Naranjo","Guadalcazar","Huehuetlan","Lagunillas","Matehuala","Matlapa","Mexquitic de Carmona","Moctezuma","Rayon","Rioverde","Salinas","San Antonio","San Ciro de Acosta","San Luis Potosi","San Martin Chalchicuautla","San Nicolas Tolentino","San Vicente Tancuayalab","Santa Catarina","Santa Maria del Rio","Santo Domingo","Soledad de Graciano Sanchez","Tamasopo","Tamazunchale","Tampacan","Tampamolon Corona","Tamuin","Tancanhuitz","Tanlajas","Tanquian de Escobedo","Tierra Nueva","Vanegas","Venado","Villa Hidalgo","Villa Juarez","Villa de Arista","Villa de Arriaga","Villa de Guadalupe","Villa de Ramos","Villa de Reyes","Villa de la Paz","Xilitla","Zaragoza"],
-  "Sinaloa": ["Ahome","Angostura","Badiraguato","Choix","Concordia","Cosala","Culiacan","El Fuerte","Elota","Escuinapa","Guasave","Mazatlan","Mocorito","Navolato","Rosario","Salvador Alvarado","San Ignacio","Sinaloa"],
-  "Sonora": ["Aconchi","Agua Prieta","Alamos","Altar","Arivechi","Arizpe","Atil","Bacadehuachi","Bacanora","Bacerac","Bacoachi","Bacum","Banamichi","Baviacora","Bavispe","Benito Juarez","Benjamin Hill","Caborca","Cajeme","Cananea","Carbo","Cucurpe","Cumpas","Divisaderos","Empalme","Etchojoa","Fronteras","General Plutarco Elias Calles","Granados","Guaymas","Hermosillo","Huachinera","Huasabas","Huatabampo","Huepac","Imuris","La Colorada","Magdalena","Mazatan","Moctezuma","Naco","Nacori Chico","Nacozari de Garcia","Navojoa","Nogales","Onavas","Opodepe","Oquitoa","Pitiquito","Puerto Penasco","Quiriego","Rayon","Rosario","Sahuaripa","San Felipe de Jesus","San Ignacio Rio Muerto","San Javier","San Luis Rio Colorado","San Miguel de Horcasitas","San Pedro de la Cueva","Santa Ana","Santa Cruz","Saric","Soyopa","Suaqui Grande","Tepache","Trincheras","Tubutama","Ures","Villa Hidalgo","Villa Pesqueira","Yecora"],
-  "Tabasco": ["Balancan","Cardenas","Centla","Centro","Comalcalco","Cunduacan","Emiliano Zapata","Huimanguillo","Jalapa","Jalpa de Mendez","Jonuta","Macuspana","Nacajuca","Paraiso","Tacotalpa","Teapa","Tenosique"],
-  "Tamaulipas": ["Abasolo","Aldama","Altamira","Antiguo Morelos","Burgos","Bustamante","Camargo","Casas","Ciudad Madero","Cruillas","El Mante","Gomez Farias","Gonzalez","Guemez","Guerrero","Gustavo Diaz Ordaz","Hidalgo","Jaumave","Jimenez","Llera","Mainero","Matamoros","Mendez","Mier","Miguel Aleman","Miquihuana","Nuevo Laredo","Nuevo Morelos","Ocampo","Padilla","Palmillas","Reynosa","Rio Bravo","San Carlos","San Fernando","San Nicolas","Soto la Marina","Tampico","Tula","Valle Hermoso","Victoria","Villagran","Xicotencatl"],
-  "Tlaxcala": ["Acuamanala de Miguel Hidalgo","Amaxac de Guerrero","Apetatitlan de Antonio Carvajal","Apizaco","Atlangatepec","Atltzayanca","Benito Juarez","Calpulalpan","Chiautempan","Contla de Juan Cuamatzi","Cuapiaxtla","Cuaxomulco","El Carmen Tequexquitla","Emiliano Zapata","Espanita","Huamantla","Hueyotlipan","Ixtacuixtla de Mariano Matamoros","Ixtenco","La Magdalena Tlaltelulco","Lazaro Cardenas","Mazatecochco de Jose Maria Morelos","Munoz de Domingo Arenas","Nanacamilpa de Mariano Arista","Nativitas","Panotla","Papalotla de Xicohtencatl","San Damian Texoloc","San Francisco Tetlanohcan","San Jeronimo Zacualpan","San Jose Teacalco","San Juan Huactzinco","San Lorenzo Axocomanitla","San Lucas Tecopilco","San Pablo del Monte","Sanctorum de Lazaro Cardenas","Santa Ana Nopalucan","Santa Apolonia Teacalco","Santa Catarina Ayometla","Santa Cruz Quilehtla","Santa Cruz Tlaxcala","Santa Isabel Xiloxoxtla","Tenancingo","Teolocholco","Tepetitla de Lardizabal","Tepeyanco","Terrenate","Tetla de la Solidaridad","Tetlatlahuca","Tlaxcala","Tlaxco","Tocatlan","Totolac","Tzompantepec","Xaloztoc","Xaltocan","Xicohtzinco","Yauhquemehcan","Zacatelco","Ziltlaltepec de Trinidad Sanchez Santos"],
-  "Veracruz": ["Acajete","Acatlan","Acayucan","Actopan","Acula","Acultzingo","Agua Dulce","Alamo Temapache","Alpatlahuac","Alto Lucero de Gutierrez Barrios","Altotonga","Alvarado","Amatitlan","Amatlan de los Reyes","Angel R. Cabada","Apazapan","Aquila","Astacinga","Atlahuilco","Atoyac","Atzacan","Atzalan","Ayahualulco","Banderilla","Benito Juarez","Boca del Rio","Calcahualco","Camaron de Tejeda","Camerino Z. Mendoza","Carlos A. Carrillo","Carrillo Puerto","Castillo de Teayo","Catemaco","Cazones de Herrera","Cerro Azul","Chacaltianguis","Chalma","Chiconamel","Chiconquiaco","Chicontepec","Chinameca","Chinampa de Gorostiza","Chocaman","Chontla","Chumatlan","Citlaltepetl","Coacoatzintla","Coahuitlan","Coatepec","Coatzacoalcos","Coatzintla","Coetzala","Colipa","Comapa","Cordoba","Cosamaloapan de Carpio","Cosautlan de Carvajal","Coscomatepec","Cosoleacaque","Cotaxtla","Coxquihui","Coyutla","Cuichapa","Cuitlahuac","El Higo","Emiliano Zapata","Espinal","Filomeno Mata","Fortin","Gutierrez Zamora","Hidalgotitlan","Huatusco","Huayacocotla","Hueyapan de Ocampo","Huiloapan de Cuauhtemoc","Ignacio de la Llave","Ilamatlan","Isla","Ixcatepec","Ixhuacan de los Reyes","Ixhuatlan de Madero","Ixhuatlan del Cafe","Ixhuatlan del Sureste","Ixhuatlancillo","Ixmatlahuacan","Ixtaczoquitlan","Jalacingo","Jalcomulco","Jaltipan","Jamapa","Jesus Carranza","Jilotepec","Jose Azueta","Juan Rodriguez Clara","Juchique de Ferrer","La Antigua","La Perla","Landero y Coss","Las Choapas","Las Minas","Las Vigas de Ramirez","Lerdo de Tejada","Los Reyes","Magdalena","Maltrata","Manlio Fabio Altamirano","Mariano Escobedo","Martinez de la Torre","Mecatlan","Mecayapan","Medellin de Bravo","Miahuatlan","Minatitlan","Misantla","Mixtla de Altamirano","Moloacan","Nanchital de Lazaro Cardenas del Rio","Naolinco","Naranjal","Naranjos Amatlan","Nautla","Nogales","Oluta","Omealca","Orizaba","Otatitlan","Oteapan","Ozuluama de Mascarenas","Pajapan","Panuco","Papantla","Paso de Ovejas","Paso del Macho","Perote","Platon Sanchez","Playa Vicente","Poza Rica de Hidalgo","Pueblo Viejo","Puente Nacional","Rafael Delgado","Rafael Lucio","Rio Blanco","Saltabarranca","San Andres Tenejapan","San Andres Tuxtla","San Juan Evangelista","San Rafael","Santiago Sochiapan","Santiago Tuxtla","Sayula de Aleman","Sochiapa","Soconusco","Soledad Atzompa","Soledad de Doblado","Soteapan","Tamalin","Tamiahua","Tampico Alto","Tancoco","Tantima","Tantoyuca","Tatahuicapan de Juarez","Tatatila","Tecolutla","Tehuipango","Tempoal","Tenampa","Tenochtitlan","Teocelo","Tepatlaxco","Tepetlan","Tepetzintla","Tequila","Texcatepec","Texhuacan","Texistepec","Tezonapa","Tierra Blanca","Tihuatlan","Tlachichilco","Tlacojalpan","Tlacolulan","Tlacotalpan","Tlacotepec de Mejia","Tlalixcoyan","Tlalnelhuayocan","Tlaltetela","Tlapacoyan","Tlaquilpa","Tlilapan","Tomatlan","Tonayan","Totutla","Tres Valles","Tuxpan","Tuxtilla","Ursulo Galvan","Uxpanapa","Vega de Alatorre","Veracruz","Villa Aldama","Xalapa","Xico","Xoxocotla","Yanga","Yecuatla","Zacualpan","Zaragoza","Zentla","Zongolica","Zontecomatlan de Lopez y Fuentes","Zozocolco de Hidalgo"],
-  "Yucatan": ["Abala","Acanceh","Akil","Baca","Bokoba","Buctzotz","Cacalchen","Calotmul","Cansahcab","Cantamayec","Celestun","Cenotillo","Chacsinkin","Chankom","Chapab","Chemax","Chichimila","Chicxulub Pueblo","Chikindzonot","Chochola","Chumayel","Conkal","Cuncunul","Cuzama","Dzan","Dzemul","Dzidzantun","Dzilam Gonzalez","Dzilam de Bravo","Dzitas","Dzoncauich","Espita","Halacho","Hocaba","Hoctun","Homun","Huhi","Hunucma","Ixil","Izamal","Kanasin","Kantunil","Kaua","Kinchil","Kopoma","Mama","Mani","Maxcanu","Mayapan","Merida","Mococha","Motul","Muna","Muxupip","Opichen","Oxkutzcab","Panaba","Peto","Progreso","Quintana Roo","Rio Lagartos","Sacalum","Samahil","San Felipe","Sanahcat","Santa Elena","Seye","Sinanche","Sotuta","Sucila","Sudzal","Suma","Tahdziu","Tahmek","Teabo","Tecoh","Tekal de Venegas","Tekanto","Tekax","Tekit","Tekom","Telchac Pueblo","Telchac Puerto","Temax","Temozon","Tepakan","Tetiz","Teya","Ticul","Timucuy","Tinum","Tixcacalcupul","Tixkokob","Tixmehuac","Tixpehual","Tizimin","Tunkas","Tzucacab","Uayma","Ucu","Uman","Valladolid","Xocchel","Yaxcaba","Yaxkukul","Yobain"],
-  "Zacatecas": ["Apozol","Apulco","Atolinga","Benito Juarez","Calera","Canitas de Felipe Pescador","Chalchihuites","Concepcion del Oro","Cuauhtemoc","El Plateado de Joaquin Amaro","El Salvador","Fresnillo","Genaro Codina","General Enrique Estrada","General Francisco R. Murguia","General Panfilo Natera","Guadalupe","Huanusco","Jalpa","Jerez","Jimenez del Teul","Juan Aldama","Juchipila","Loreto","Luis Moya","Mazapil","Melchor Ocampo","Mezquital del Oro","Miguel Auza","Momax","Monte Escobedo","Morelos","Moyahua de Estrada","Nochistlan de Mejia","Noria de Angeles","Ojocaliente","Panuco","Pinos","Rio Grande","Sain Alto","Santa Maria de la Paz","Sombrerete","Susticacan","Tabasco","Tepechitlan","Tepetongo","Teul de Gonzalez Ortega","Tlaltenango de Sanchez Roman","Trancoso","Trinidad Garcia de la Cadena","Valparaiso","Vetagrande","Villa Garcia","Villa Gonzalez Ortega","Villa Hidalgo","Villa de Cos","Villanueva","Zacatecas"]
-};
+import { Link } from 'react-router-dom';
 
 interface Property {
   id: string;
   title: string;
+  description: string;
   price: number;
   currency: string;
   operation_type: string;
+  address: string;
   city: string;
   province: string;
-  bedrooms: number;
-  bathrooms: number;
-  surface_total: number;
-  property_images: Array<{ image_url: string; is_main: boolean }>;
-  property_categories: { name: string };
-  profiles: {
-    first_name: string;
-    last_name: string;
-    phone: string;
-    user_type: string;
-    subscriptions: Array<{
-      plan_type: string;
-      status: string;
-    }>;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  surface_total: number | null;
+  parking_spaces: number | null;
+  status: string;
+  created_at: string;
+  views_count: number;
+  features: any[];
+  user_id: string;
+  profiles?: {
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    user_type?: string;
   };
+  subscriptions?: {
+    plan_type?: string;
+  }[];
 }
 
-const Properties = () => {
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    search: searchParams.get('search') || '',
-    operation_type: '',
-    category: '',
-    min_price: '',
-    max_price: '',
-    state: '',
-    city: '',
-    municipality: '',
-    bedrooms: '',
-    username: '',
-    phone: '',
-    pets_allowed: '',
-    furnished: '',
-    parking: '',
-    wifi: '',
-    pool: '',
-    gym: '',
-    security: '',
-    elevator: ''
-  });
+const mexicoStatesAndMunicipalities = {
+  "Aguascalientes": ["Aguascalientes","Asientos","Calvillo","Cosio","El Llano","Jesus Maria","Pabellon de Arteaga","Rincon de Romos","San Francisco de los Romo","San Jose de Gracia","Tepezala"],
+  "Baja California": ["Ensenada","Mexicali","Playas de Rosarito","Tecate","Tijuana"],
+  "Baja California Sur": ["Comondu","La Paz","Loreto","Los Cabos","Mulege"],
+  "Ciudad de Mexico": ["Alvaro Obregon","Azcapotzalco","Benito Juarez","Coyoacan","Cuajimalpa de Morelos","Cuauhtemoc","Gustavo A. Madero","Iztacalco","Iztapalapa","La Magdalena Contreras","Miguel Hidalgo","Milpa Alta","Tlalpan","Tlahuac","Venustiano Carranza","Xochimilco"],
+  "Jalisco": ["Guadalajara","Zapopan","Tlaquepaque","Tonala","Puerto Vallarta","Lagos de Moreno","Tepatitlan de Morelos"],
+  "Estado de Mexico": ["Toluca","Ecatepec de Morelos","Nezahualcoyotl","Naucalpan de Juarez","Tlalnepantla de Baz","Chimalhuacan","Cuautitlan Izcalli"]
+};
 
-  const [availableMunicipalities, setAvailableMunicipalities] = useState<string[]>([]);
+const Properties = () => {
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedMunicipality, setSelectedMunicipality] = useState('');
+  const [operationType, setOperationType] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [bedrooms, setBedrooms] = useState('');
+  const [allowsPets, setAllowsPets] = useState('');
+  const [furnished, setFurnished] = useState('');
+  const [hasParking, setHasParking] = useState('');
+  const [hasWifi, setHasWifi] = useState('');
+  const [hasPool, setHasPool] = useState('');
+  const [hasGym, setHasGym] = useState('');
+  const [hasSecurity, setHasSecurity] = useState('');
 
   useEffect(() => {
-    fetchCategories();
     fetchProperties();
   }, []);
 
   useEffect(() => {
-    fetchProperties();
-  }, [filters]);
-
-  useEffect(() => {
-    if (filters.state && mexicoStatesAndMunicipalities[filters.state]) {
-      setAvailableMunicipalities(mexicoStatesAndMunicipalities[filters.state]);
-    } else {
-      setAvailableMunicipalities([]);
-    }
-    // Limpiar municipio si cambió el estado
-    if (filters.municipality && filters.state) {
-      const stateMunicipalities = mexicoStatesAndMunicipalities[filters.state];
-      if (!stateMunicipalities?.includes(filters.municipality)) {
-        setFilters(prev => ({ ...prev, municipality: '' }));
-      }
-    }
-  }, [filters.state]);
-
-  const fetchCategories = async () => {
-    const { data } = await supabase
-      .from('property_categories')
-      .select('*')
-      .order('name');
-    
-    if (data) setCategories(data);
-  };
+    applyFilters();
+  }, [properties, searchTerm, selectedState, selectedMunicipality, operationType, minPrice, maxPrice, bedrooms, allowsPets, furnished, hasParking, hasWifi, hasPool, hasGym, hasSecurity]);
 
   const fetchProperties = async () => {
-    setLoading(true);
-    
-    let query = supabase
-      .from('properties')
-      .select(`
-        *,
-        property_images (image_url, is_main),
-        property_categories (name),
-        profiles!properties_user_id_fkey (
-          first_name,
-          last_name,
-          phone,
-          user_type,
+    try {
+      const { data, error } = await supabase
+        .from('properties')
+        .select(`
+          *,
+          profiles!properties_user_id_fkey (
+            first_name,
+            last_name,
+            phone,
+            user_type
+          ),
           subscriptions!subscriptions_user_id_fkey (
-            plan_type,
-            status
+            plan_type
           )
-        )
-      `)
-      .eq('status', 'published')
-      .order('created_at', { ascending: false });
+        `)
+        .eq('status', 'published')
+        .order('created_at', { ascending: false });
 
-    if (filters.search) {
-      query = query.or(`title.ilike.%${filters.search}%,city.ilike.%${filters.search}%,province.ilike.%${filters.search}%`);
+      if (error) {
+        console.error('Error fetching properties:', error);
+      } else {
+        setProperties(data || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
     }
-
-    if (filters.operation_type) {
-      query = query.eq('operation_type', filters.operation_type);
-    }
-
-    if (filters.category) {
-      query = query.eq('category_id', filters.category);
-    }
-
-    if (filters.min_price) {
-      query = query.gte('price', parseFloat(filters.min_price));
-    }
-
-    if (filters.max_price) {
-      query = query.lte('price', parseFloat(filters.max_price));
-    }
-
-    if (filters.state) {
-      query = query.ilike('province', `%${filters.state}%`);
-    }
-
-    if (filters.municipality) {
-      query = query.ilike('city', `%${filters.municipality}%`);
-    }
-
-    if (filters.city) {
-      query = query.ilike('city', `%${filters.city}%`);
-    }
-
-    if (filters.bedrooms) {
-      query = query.eq('bedrooms', parseInt(filters.bedrooms));
-    }
-
-    if (filters.username) {
-      query = query.or(`profiles.first_name.ilike.%${filters.username}%,profiles.last_name.ilike.%${filters.username}%`);
-    }
-
-    if (filters.phone) {
-      query = query.ilike('profiles.phone', `%${filters.phone}%`);
-    }
-
-    // Filtros adicionales basados en amenities/features
-    if (filters.pets_allowed === 'true') {
-      query = query.contains('amenities', ['Mascotas permitidas']);
-    }
-
-    if (filters.furnished === 'true') {
-      query = query.contains('amenities', ['Amueblado']);
-    }
-
-    if (filters.parking === 'true') {
-      query = query.gte('parking_spaces', 1);
-    }
-
-    if (filters.wifi === 'true') {
-      query = query.contains('amenities', ['WiFi']);
-    }
-
-    if (filters.pool === 'true') {
-      query = query.contains('amenities', ['Piscina']);
-    }
-
-    if (filters.gym === 'true') {
-      query = query.contains('amenities', ['Gimnasio']);
-    }
-
-    if (filters.security === 'true') {
-      query = query.contains('amenities', ['Seguridad 24/7']);
-    }
-
-    if (filters.elevator === 'true') {
-      query = query.contains('amenities', ['Elevador']);
-    }
-
-    const { data, error } = await query;
-
-    if (data && !error) {
-      setProperties(data);
-    }
-    
-    setLoading(false);
   };
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+  const applyFilters = () => {
+    let filtered = [...properties];
+
+    // Filtro por término de búsqueda
+    if (searchTerm) {
+      filtered = filtered.filter(property =>
+        property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.address.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filtro por estado
+    if (selectedState) {
+      filtered = filtered.filter(property => property.province === selectedState);
+    }
+
+    // Filtro por municipio
+    if (selectedMunicipality && selectedMunicipality !== 'Otro') {
+      filtered = filtered.filter(property => property.city === selectedMunicipality);
+    }
+
+    // Filtro por tipo de operación
+    if (operationType) {
+      filtered = filtered.filter(property => property.operation_type === operationType);
+    }
+
+    // Filtro por precio
+    if (minPrice) {
+      filtered = filtered.filter(property => property.price >= parseFloat(minPrice));
+    }
+    if (maxPrice) {
+      filtered = filtered.filter(property => property.price <= parseFloat(maxPrice));
+    }
+
+    // Filtro por dormitorios
+    if (bedrooms) {
+      filtered = filtered.filter(property => property.bedrooms === parseInt(bedrooms));
+    }
+
+    // Filtros de características
+    if (allowsPets === 'true') {
+      filtered = filtered.filter(property => 
+        property.features?.includes('pets') || 
+        property.features?.includes('mascotas')
+      );
+    }
+
+    if (furnished === 'true') {
+      filtered = filtered.filter(property => 
+        property.features?.includes('furnished') || 
+        property.features?.includes('amueblado')
+      );
+    }
+
+    if (hasParking === 'true') {
+      filtered = filtered.filter(property => 
+        property.parking_spaces && property.parking_spaces > 0
+      );
+    }
+
+    if (hasWifi === 'true') {
+      filtered = filtered.filter(property => 
+        property.features?.includes('wifi')
+      );
+    }
+
+    if (hasPool === 'true') {
+      filtered = filtered.filter(property => 
+        property.features?.includes('pool') || 
+        property.features?.includes('piscina')
+      );
+    }
+
+    if (hasGym === 'true') {
+      filtered = filtered.filter(property => 
+        property.features?.includes('gym') || 
+        property.features?.includes('gimnasio')
+      );
+    }
+
+    if (hasSecurity === 'true') {
+      filtered = filtered.filter(property => 
+        property.features?.includes('security') || 
+        property.features?.includes('seguridad')
+      );
+    }
+
+    setFilteredProperties(filtered);
   };
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: currency === 'ARS' ? 'ARS' : currency === 'MXN' ? 'MXN' : 'USD',
+      currency: currency === 'USD' ? 'USD' : 'MXN',
     }).format(price);
   };
 
-  const getUserPlan = (subscriptions: any[]) => {
-    const activeSub = subscriptions?.find(sub => sub.status === 'active');
-    return activeSub?.plan_type || 'basic';
+  const getUserFrame = (subscriptions: any[]) => {
+    if (!subscriptions || subscriptions.length === 0) return 'basic';
+    const subscription = subscriptions[0];
+    return subscription?.plan_type || 'basic';
   };
 
-  const getPlanPrice = (plan: string) => {
-    const prices = {
-      'basic': 0,
-      'plan_100': 100,
-      'plan_300': 300,
-      'plan_500': 500,
-      'plan_1000': 1000,
-      'plan_3000': 3000
-    };
-    return prices[plan] || 0;
-  };
-
-  const getFrameStyle = (plan: string) => {
-    switch (plan) {
+  const getFrameStyle = (planType: string) => {
+    switch (planType) {
+      case 'plan_100':
+        return 'border-2 border-blue-400 shadow-lg';
+      case 'plan_300':
+        return 'border-2 border-green-400 shadow-lg';
+      case 'plan_500':
+        return 'border-2 border-purple-400 shadow-lg';
       case 'plan_1000':
-        return 'border-4 border-yellow-500 shadow-lg shadow-yellow-500/50';
+        return 'border-4 border-yellow-400 shadow-xl bg-gradient-to-r from-yellow-50 to-orange-50';
       case 'plan_3000':
-        return 'border-4 border-gradient-to-r from-purple-500 via-pink-500 to-red-500 shadow-2xl animate-pulse bg-gradient-to-br from-purple-100 to-pink-100';
+        return 'border-4 border-gradient-to-r from-pink-500 to-purple-600 shadow-2xl bg-gradient-to-r from-pink-50 to-purple-50 animate-pulse';
       default:
-        return '';
+        return 'border border-gray-200';
     }
   };
 
-  const shareProperty = (property: Property) => {
-    const url = `${window.location.origin}/properties/${property.id}`;
-    navigator.clipboard.writeText(url);
-    alert('Enlace copiado al portapapeles');
+  const getPlanBadge = (planType: string) => {
+    switch (planType) {
+      case 'plan_100':
+        return <Badge className="bg-blue-500">Básico Plus</Badge>;
+      case 'plan_300':
+        return <Badge className="bg-green-500">Estándar</Badge>;
+      case 'plan_500':
+        return <Badge className="bg-purple-500">Premium</Badge>;
+      case 'plan_1000':
+        return <Badge className="bg-yellow-500">Premium Gold</Badge>;
+      case 'plan_3000':
+        return <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">VIP Elite</Badge>;
+      default:
+        return <Badge variant="outline">Básico</Badge>;
+    }
   };
 
   const clearFilters = () => {
-    setFilters({
-      search: '',
-      operation_type: '',
-      category: '',
-      min_price: '',
-      max_price: '',
-      state: '',
-      city: '',
-      municipality: '',
-      bedrooms: '',
-      username: '',
-      phone: '',
-      pets_allowed: '',
-      furnished: '',
-      parking: '',
-      wifi: '',
-      pool: '',
-      gym: '',
-      security: '',
-      elevator: ''
-    });
+    setSearchTerm('');
+    setSelectedState('');
+    setSelectedMunicipality('');
+    setOperationType('');
+    setMinPrice('');
+    setMaxPrice('');
+    setBedrooms('');
+    setAllowsPets('');
+    setFurnished('');
+    setHasParking('');
+    setHasWifi('');
+    setHasPool('');
+    setHasGym('');
+    setHasSecurity('');
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <p>Cargando propiedades...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
-          Propiedades Disponibles
-        </h1>
-
-        {/* Filters */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold flex items-center">
-              <Filter className="h-5 w-5 mr-2" />
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Propiedades Disponibles</h1>
+        
+        {/* Filtros */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
               Filtros de Búsqueda
-            </h2>
-            <Button variant="outline" onClick={clearFilters}>
-              Limpiar Filtros
-            </Button>
-          </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {/* Búsqueda general */}
+              <div className="lg:col-span-2">
+                <Input
+                  placeholder="Buscar por título, descripción, ciudad..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full"
+                />
+              </div>
 
-          {/* Filtros básicos */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Buscar propiedades..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="pl-10"
-              />
+              {/* Tipo de operación */}
+              <Select value={operationType} onValueChange={setOperationType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tipo de operación" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sale">Venta</SelectItem>
+                  <SelectItem value="rent">Alquiler</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Estado */}
+              <Select value={selectedState} onValueChange={setSelectedState}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(mexicoStatesAndMunicipalities).map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <Input
-              type="text"
-              placeholder="Nombre de usuario"
-              value={filters.username}
-              onChange={(e) => handleFilterChange('username', e.target.value)}
-            />
-
-            <Input
-              type="text"
-              placeholder="Teléfono"
-              value={filters.phone}
-              onChange={(e) => handleFilterChange('phone', e.target.value)}
-            />
-
-            <Select
-              value={filters.operation_type}
-              onValueChange={(value) => handleFilterChange('operation_type', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo de operación" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
-                <SelectItem value="sale">Venta</SelectItem>
-                <SelectItem value="rent">Alquiler</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Filtros de ubicación */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Select
-              value={filters.state}
-              onValueChange={(value) => handleFilterChange('state', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todos los estados</SelectItem>
-                {Object.keys(mexicoStatesAndMunicipalities).map((state) => (
-                  <SelectItem key={state} value={state}>
-                    {state}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={filters.municipality}
-              onValueChange={(value) => handleFilterChange('municipality', value)}
-              disabled={!filters.state}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Municipio" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todos los municipios</SelectItem>
-                {availableMunicipalities.map((municipality) => (
-                  <SelectItem key={municipality} value={municipality}>
-                    {municipality}
-                  </SelectItem>
-                ))}
-                <SelectItem value="otro">Otro</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Input
-              type="text"
-              placeholder="Ciudad (búsqueda libre)"
-              value={filters.city}
-              onChange={(e) => handleFilterChange('city', e.target.value)}
-            />
-          </div>
-
-          {/* Filtros de propiedad */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Select
-              value={filters.category}
-              onValueChange={(value) => handleFilterChange('category', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Input
-              type="number"
-              placeholder="Precio mínimo"
-              value={filters.min_price}
-              onChange={(e) => handleFilterChange('min_price', e.target.value)}
-            />
-
-            <Input
-              type="number"
-              placeholder="Precio máximo"
-              value={filters.max_price}
-              onChange={(e) => handleFilterChange('max_price', e.target.value)}
-            />
-
-            <Select
-              value={filters.bedrooms}
-              onValueChange={(value) => handleFilterChange('bedrooms', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Dormitorios" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Cualquier cantidad</SelectItem>
-                <SelectItem value="1">1 dormitorio</SelectItem>
-                <SelectItem value="2">2 dormitorios</SelectItem>
-                <SelectItem value="3">3 dormitorios</SelectItem>
-                <SelectItem value="4">4+ dormitorios</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Filtros de amenidades */}
-          <div className="border-t pt-4">
-            <h3 className="text-sm font-medium mb-3 text-gray-700">Amenidades y Características</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-              <Select
-                value={filters.pets_allowed}
-                onValueChange={(value) => handleFilterChange('pets_allowed', value)}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {/* Municipio */}
+              <Select 
+                value={selectedMunicipality} 
+                onValueChange={setSelectedMunicipality}
+                disabled={!selectedState}
               >
-                <SelectTrigger className="h-9">
-                  <div className="flex items-center">
-                    <PawPrint className="h-4 w-4 mr-1" />
-                    <SelectValue placeholder="Mascotas" />
-                  </div>
+                <SelectTrigger>
+                  <SelectValue placeholder="Municipio" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Cualquiera</SelectItem>
-                  <SelectItem value="true">Mascotas permitidas</SelectItem>
-                  <SelectItem value="false">Sin mascotas</SelectItem>
+                  {selectedState && mexicoStatesAndMunicipalities[selectedState as keyof typeof mexicoStatesAndMunicipalities]?.map((municipality) => (
+                    <SelectItem key={municipality} value={municipality}>
+                      {municipality}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Otro">Otro</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select
-                value={filters.furnished}
-                onValueChange={(value) => handleFilterChange('furnished', value)}
-              >
-                <SelectTrigger className="h-9">
-                  <div className="flex items-center">
-                    <Building className="h-4 w-4 mr-1" />
-                    <SelectValue placeholder="Amueblado" />
-                  </div>
+              {/* Precio mínimo */}
+              <Input
+                type="number"
+                placeholder="Precio mínimo"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+              />
+
+              {/* Precio máximo */}
+              <Input
+                type="number"
+                placeholder="Precio máximo"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+              />
+
+              {/* Dormitorios */}
+              <Select value={bedrooms} onValueChange={setBedrooms}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Dormitorios" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Cualquiera</SelectItem>
+                  <SelectItem value="1">1</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="4">4</SelectItem>
+                  <SelectItem value="5">5+</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Filtros de características */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-4">
+              <Select value={allowsPets} onValueChange={setAllowsPets}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Mascotas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Sí acepta</SelectItem>
+                  <SelectItem value="false">No acepta</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={furnished} onValueChange={setFurnished}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Amueblado" />
+                </SelectTrigger>
+                <SelectContent>
                   <SelectItem value="true">Amueblado</SelectItem>
-                  <SelectItem value="false">Sin amueblar</SelectItem>
+                  <SelectItem value="false">Sin muebles</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select
-                value={filters.parking}
-                onValueChange={(value) => handleFilterChange('parking', value)}
-              >
-                <SelectTrigger className="h-9">
-                  <div className="flex items-center">
-                    <Car className="h-4 w-4 mr-1" />
-                    <SelectValue placeholder="Estacionamiento" />
-                  </div>
+              <Select value={hasParking} onValueChange={setHasParking}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Parking" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Cualquiera</SelectItem>
-                  <SelectItem value="true">Con estacionamiento</SelectItem>
-                  <SelectItem value="false">Sin estacionamiento</SelectItem>
+                  <SelectItem value="true">Con parking</SelectItem>
+                  <SelectItem value="false">Sin parking</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select
-                value={filters.wifi}
-                onValueChange={(value) => handleFilterChange('wifi', value)}
-              >
-                <SelectTrigger className="h-9">
-                  <div className="flex items-center">
-                    <Wifi className="h-4 w-4 mr-1" />
-                    <SelectValue placeholder="WiFi" />
-                  </div>
+              <Select value={hasWifi} onValueChange={setHasWifi}>
+                <SelectTrigger>
+                  <SelectValue placeholder="WiFi" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Cualquiera</SelectItem>
                   <SelectItem value="true">Con WiFi</SelectItem>
                   <SelectItem value="false">Sin WiFi</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select
-                value={filters.pool}
-                onValueChange={(value) => handleFilterChange('pool', value)}
-              >
-                <SelectTrigger className="h-9">
+              <Select value={hasPool} onValueChange={setHasPool}>
+                <SelectTrigger>
                   <SelectValue placeholder="Piscina" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Cualquiera</SelectItem>
                   <SelectItem value="true">Con piscina</SelectItem>
                   <SelectItem value="false">Sin piscina</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select
-                value={filters.gym}
-                onValueChange={(value) => handleFilterChange('gym', value)}
-              >
-                <SelectTrigger className="h-9">
+              <Select value={hasGym} onValueChange={setHasGym}>
+                <SelectTrigger>
                   <SelectValue placeholder="Gimnasio" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Cualquiera</SelectItem>
                   <SelectItem value="true">Con gimnasio</SelectItem>
                   <SelectItem value="false">Sin gimnasio</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select
-                value={filters.security}
-                onValueChange={(value) => handleFilterChange('security', value)}
-              >
-                <SelectTrigger className="h-9">
+              <Select value={hasSecurity} onValueChange={setHasSecurity}>
+                <SelectTrigger>
                   <SelectValue placeholder="Seguridad" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Cualquiera</SelectItem>
-                  <SelectItem value="true">Con seguridad 24/7</SelectItem>
+                  <SelectItem value="true">Con seguridad</SelectItem>
                   <SelectItem value="false">Sin seguridad</SelectItem>
                 </SelectContent>
               </Select>
 
-              <Select
-                value={filters.elevator}
-                onValueChange={(value) => handleFilterChange('elevator', value)}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Elevador" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Cualquiera</SelectItem>
-                  <SelectItem value="true">Con elevador</SelectItem>
-                  <SelectItem value="false">Sin elevador</SelectItem>
-                </SelectContent>
-              </Select>
+              <Button variant="outline" onClick={clearFilters}>
+                Limpiar
+              </Button>
             </div>
-          </div>
+          </CardContent>
+        </Card>
+
+        {/* Resultados */}
+        <div className="mb-4">
+          <p className="text-gray-600">
+            {filteredProperties.length} propiedades encontradas
+          </p>
         </div>
       </div>
 
-      {/* Results */}
-      {loading ? (
-        <div className="text-center py-8">
-          <p>Cargando propiedades...</p>
-        </div>
-      ) : (
-        <>
-          <div className="mb-6">
-            <p className="text-gray-600">
-              {properties.length} propiedades encontradas
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {properties.map((property) => {
-              const mainImage = property.property_images?.find(img => img.is_main)?.image_url 
-                || property.property_images?.[0]?.image_url 
-                || '/placeholder.svg';
+      {/* Grid de propiedades */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredProperties.map((property) => {
+          const userPlan = getUserFrame(property.subscriptions || []);
+          
+          return (
+            <Card key={property.id} className={`hover:shadow-lg transition-shadow ${getFrameStyle(userPlan)}`}>
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg font-semibold line-clamp-2">
+                    {property.title}
+                  </CardTitle>
+                  {getPlanBadge(userPlan)}
+                </div>
+                
+                {/* Información del usuario para planes premium */}
+                {(userPlan === 'plan_300' || userPlan === 'plan_500' || userPlan === 'plan_1000' || userPlan === 'plan_3000') && property.profiles && (
+                  <div className="text-sm text-gray-600">
+                    <p>📞 {property.profiles.phone || 'No disponible'}</p>
+                    <p>👤 {property.profiles.first_name} {property.profiles.last_name}</p>
+                  </div>
+                )}
+              </CardHeader>
               
-              const userPlan = getUserPlan(property.profiles?.subscriptions);
-              const planPrice = getPlanPrice(userPlan);
-              const frameStyle = getFrameStyle(userPlan);
-              const canShare = planPrice >= 1000;
-
-              return (
-                <Card key={property.id} className={`overflow-hidden hover:shadow-lg transition-shadow cursor-pointer ${frameStyle}`}>
-                  <div className="aspect-video relative">
-                    <img 
-                      src={mainImage} 
-                      alt={property.title}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-4 left-4 flex gap-2">
-                      <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                        {property.operation_type === 'sale' ? 'Venta' : 'Alquiler'}
-                      </span>
-                      {planPrice > 0 && (
-                        <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center">
-                          <Star className="h-3 w-3 mr-1" />
-                          Premium
-                        </span>
-                      )}
-                    </div>
-                    {canShare && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="absolute top-4 right-4"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          shareProperty(property);
-                        }}
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </Button>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center text-gray-600 text-sm">
+                    <MapPin className="h-4 w-4 mr-1" />
+                    {property.city}, {property.province}
+                  </div>
+                  
+                  <div className="flex items-center text-2xl font-bold text-blue-600">
+                    <DollarSign className="h-5 w-5 mr-1" />
+                    {formatPrice(property.price, property.currency)}
+                  </div>
+                  
+                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                    {property.bedrooms && (
+                      <div className="flex items-center">
+                        <Bed className="h-4 w-4 mr-1" />
+                        {property.bedrooms}
+                      </div>
+                    )}
+                    {property.bathrooms && (
+                      <div className="flex items-center">
+                        <Bath className="h-4 w-4 mr-1" />
+                        {property.bathrooms}
+                      </div>
+                    )}
+                    {property.parking_spaces && property.parking_spaces > 0 && (
+                      <div className="flex items-center">
+                        <Car className="h-4 w-4 mr-1" />
+                        {property.parking_spaces}
+                      </div>
                     )}
                   </div>
                   
-                  <CardContent className="p-6" onClick={() => navigate(`/properties/${property.id}`)}>
-                    <h3 className="font-semibold text-lg mb-2 line-clamp-2">
-                      {property.title}
-                    </h3>
+                  {/* Características */}
+                  <div className="flex flex-wrap gap-1">
+                    {property.features?.includes('pets') && <Dog className="h-4 w-4 text-green-600" />}
+                    {property.features?.includes('wifi') && <Wifi className="h-4 w-4 text-blue-600" />}
+                    {property.features?.includes('security') && <Shield className="h-4 w-4 text-red-600" />}
+                    {property.features?.includes('pool') && <Waves className="h-4 w-4 text-blue-400" />}
+                    {property.features?.includes('gym') && <Dumbbell className="h-4 w-4 text-purple-600" />}
+                  </div>
+                  
+                  <p className="text-gray-600 text-sm line-clamp-2">
+                    {property.description}
+                  </p>
+                  
+                  <div className="flex justify-between items-center pt-2">
+                    <Badge variant={property.operation_type === 'sale' ? 'default' : 'secondary'}>
+                      {property.operation_type === 'sale' ? 'Venta' : 'Alquiler'}
+                    </Badge>
                     
-                    <p className="text-sm text-gray-600 mb-2">
-                      {property.property_categories?.name}
-                    </p>
-                    
-                    <p className="text-2xl font-bold text-blue-600 mb-2">
-                      {formatPrice(property.price, property.currency)}
-                    </p>
-                    
-                    <p className="text-gray-600 mb-4 flex items-center">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      {property.city}, {property.province}
-                    </p>
-
-                    {/* User Info */}
-                    <div className="border-t pt-3 mt-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <User className="h-4 w-4 mr-2 text-gray-500" />
-                          <span className="text-sm text-gray-700">
-                            {property.profiles?.first_name} {property.profiles?.last_name}
-                          </span>
-                          {planPrice >= 3000 && (
-                            <Button
-                              size="sm"
-                              variant="link"
-                              className="text-xs p-0 ml-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/user/${property.profiles?.first_name}-${property.profiles?.last_name}`);
-                              }}
-                            >
-                              Ver perfil
-                            </Button>
-                          )}
-                        </div>
-                        {planPrice > 0 && (
-                          <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                            Plan ${planPrice} MXN
-                          </span>
-                        )}
-                      </div>
-                      {property.profiles?.phone && planPrice >= 300 && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          📞 {property.profiles.phone}
-                        </p>
-                      )}
+                    <div className="text-xs text-gray-500">
+                      {property.views_count} vistas
                     </div>
-                    
-                    <div className="flex justify-between text-sm text-gray-600 mt-3">
-                      <span>{property.bedrooms} dorm.</span>
-                      <span>{property.bathrooms} baños</span>
-                      <span>{property.surface_total} m²</span>
+                  </div>
+                  
+                  {/* Enlaces para usuarios VIP */}
+                  {userPlan === 'plan_3000' && (
+                    <div className="pt-2 border-t">
+                      <Link 
+                        to={`/user/${property.profiles?.first_name?.toLowerCase()}-${property.profiles?.last_name?.toLowerCase()}`}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        Ver todas las propiedades de {property.profiles?.first_name}
+                      </Link>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
-          {properties.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">
-                No se encontraron propiedades con los filtros seleccionados.
-              </p>
-              <Button onClick={clearFilters} className="mt-4">
-                Limpiar todos los filtros
-              </Button>
-            </div>
-          )}
-        </>
+      {filteredProperties.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No se encontraron propiedades
+          </h3>
+          <p className="text-gray-600 mb-4">
+            Intenta ajustar tus filtros de búsqueda
+          </p>
+          <Button onClick={clearFilters}>
+            Limpiar filtros
+          </Button>
+        </div>
       )}
     </div>
   );

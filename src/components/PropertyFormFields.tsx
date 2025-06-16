@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,7 @@ interface Property {
   amenities: string[];
   is_featured: boolean;
   property_type?: string;
+  contact_phone?: string;
 }
 
 interface PropertyFormFieldsProps {
@@ -38,8 +40,6 @@ interface PropertyFormFieldsProps {
   setProperty: React.Dispatch<React.SetStateAction<Property>>;
   municipalities: string[];
   onStateChange: (state: string) => void;
-  userPhone?: string;
-  onPhoneChange: (phone: string) => void;
 }
 
 const COMMON_FEATURES = [
@@ -61,9 +61,7 @@ const PropertyFormFields: React.FC<PropertyFormFieldsProps> = ({
   property,
   setProperty,
   municipalities,
-  onStateChange,
-  userPhone,
-  onPhoneChange
+  onStateChange
 }) => {
   const handleFeatureChange = (feature: string, checked: boolean) => {
     setProperty(prev => ({
@@ -195,11 +193,11 @@ const PropertyFormFields: React.FC<PropertyFormFieldsProps> = ({
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="phone">Teléfono de contacto</Label>
+            <Label htmlFor="contact_phone">Teléfono de contacto</Label>
             <Input
-              id="phone"
-              value={userPhone || ''}
-              onChange={(e) => onPhoneChange(e.target.value)}
+              id="contact_phone"
+              value={property.contact_phone || ''}
+              onChange={(e) => setProperty(prev => ({ ...prev, contact_phone: e.target.value }))}
               placeholder="Ej: +52 55 1234 5678"
             />
             <p className="text-sm text-gray-500 mt-1">
